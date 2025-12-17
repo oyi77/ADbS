@@ -1,0 +1,32 @@
+#!/bin/sh
+# ADbS Pre-commit Hook
+# Ensures workflow stage validation passes before committing
+
+# Check if adbs/workflow-enforcer is available
+if command -v adbs >/dev/null 2>&1; then
+    CMD="adbs"
+elif command -v workflow-enforcer >/dev/null 2>&1; then
+    CMD="workflow-enforcer"
+elif [ -f "./bin/adbs" ]; then
+    CMD="./bin/adbs"
+elif [ -f "./bin/workflow-enforcer" ]; then
+    CMD="./bin/workflow-enforcer"
+else
+    # Try looking in typical installation locations
+    if [ -f "$HOME/.adbs/bin/adbs" ]; then
+        CMD="$HOME/.adbs/bin/adbs"
+    else
+        echo "ADbS: Workflow enforcer not found. Skipping validation."
+        exit 0
+    fi
+fi
+
+echo "ADbS: Validating workflow stage..."
+if ! "$CMD" validate; then
+    echo "ADbS: Validation failed. Commit blocked."
+    echo "Run '$CMD status' to see what needs to be done."
+    exit 1
+fi
+
+echo "ADbS: Workflow validation passed."
+exit 0

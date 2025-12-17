@@ -1,0 +1,17 @@
+---
+description: Zed specific platform rules
+globs: .zed/**/*
+alwaysApply: true
+---
+# Zed-Specific Rules
+
+## Context
+
+- This project uses the ADbS workflow.
+- Zed reads rules from `.rules` at the project root.
+- The `adbs` tool manages this file by concatenating rules.
+
+## Capabilities
+
+- Zed does not support complex frontmatter in `.rules`, but we include it for compatibility.
+- Use `adbs` for all workflow tasks.

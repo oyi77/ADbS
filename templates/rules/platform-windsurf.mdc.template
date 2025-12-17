@@ -1,0 +1,12 @@
+---
+description: Windsurf specific platform rules
+globs: .windsurf/**/*
+alwaysApply: true
+---
+# Windsurf-Specific Rules
+
+## Helper Context
+
+- This project uses the ADbS workflow.
+- Rules are located in `.windsurf/rules/`.
+- Use `adbs` commands for workflow actions.

@@ -1,0 +1,191 @@
+#!/bin/bash
+# Main CLI tool for workflow enforcement
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Set paths
+export WORKFLOW_ENFORCER_DIR="${WORKFLOW_ENFORCER_DIR:-$PROJECT_ROOT/.workflow-enforcer}"
+VALIDATOR="$PROJECT_ROOT/lib/validator/workflow.sh"
+TASK_MANAGER="$PROJECT_ROOT/lib/task_manager/beads_wrapper.sh"
+PLATFORM_DETECTOR="$PROJECT_ROOT/lib/platform_detector.sh"
+OPENSPEC="$PROJECT_ROOT/lib/openspec.sh"
+
+# Ensure scripts are executable
+chmod +x "$VALIDATOR" "$TASK_MANAGER" "$PLATFORM_DETECTOR" "$OPENSPEC" 2>/dev/null || true
+
+# Main command handler
+case "${1:-}" in
+    status)
+        "$VALIDATOR" status
+        ;;
+    validate)
+        "$VALIDATOR" validate
+        ;;
+    next)
+        "$VALIDATOR" next
+        ;;
+    current)
+        "$VALIDATOR" current
+        ;;
+    set)
+        shift
+        "$VALIDATOR" set "$@"
+        ;;
+    task)
+        shift
+        "$TASK_MANAGER" "$@"
+        ;;
+    platform)
+        shift
+        case "${1:-}" in
+            detect)
+                "$PLATFORM_DETECTOR" detect
+                ;;
+            rules-dir)
+                "$PLATFORM_DETECTOR" rules-dir
+                ;;
+            rules-file)
+                "$PLATFORM_DETECTOR" rules-file
+                ;;
+            *)
+                echo "Usage: adbs platform {detect|detect-all|rules-dir|rules-dirs|rules-file}"
+                echo "       (or: workflow-enforcer platform ...)"
+                exit 1
+                ;;
+        esac
+        ;;
+    init)
+        # Initialize workflow
+        mkdir -p "$WORKFLOW_ENFORCER_DIR"
+        mkdir -p ".sdd/plans" ".sdd/requirements" ".sdd/designs" ".sdd/tasks"
+        if [ ! -f "$WORKFLOW_ENFORCER_DIR/current-stage" ]; then
+            echo "explore" > "$WORKFLOW_ENFORCER_DIR/current-stage"
+            echo "Initialized workflow - starting at 'explore' stage"
+        else
+            echo "Workflow already initialized"
+            "$VALIDATOR" status
+        fi
+        ;;
+    install-hooks)
+        # Install git hooks
+        if [ ! -d ".git" ]; then
+            echo "Error: Not a git repository"
+            exit 1
+        fi
+        
+        HOOKS_DIR=".git/hooks"
+        mkdir -p "$HOOKS_DIR"
+        
+        PRE_COMMIT_TEMPLATE="$PROJECT_ROOT/templates/hooks/pre-commit"
+        if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
+            cp "$PRE_COMMIT_TEMPLATE" "$HOOKS_DIR/pre-commit"
+            chmod +x "$HOOKS_DIR/pre-commit"
+            echo "Installed pre-commit hook"
+        else
+            echo "Error: Pre-commit hook template not found at $PRE_COMMIT_TEMPLATE"
+            exit 1
+        fi
+        ;;
+    version|--version|-v)
+        if [ -f "$PROJECT_ROOT/VERSION" ]; then
+            cat "$PROJECT_ROOT/VERSION"
+        else
+            echo "unknown"
+        fi
+        ;;
+    update)
+        # Update ADbS
+        echo "Updating ADbS..."
+        if [ -d "$PROJECT_ROOT/.git" ]; then
+            cd "$PROJECT_ROOT" && git pull && echo "Updated successfully."
+        else
+            echo "Error: Not a git repository. Cannot auto-update."
+            echo "Please reinstall using the installation command."
+            exit 1
+        fi
+        ;;
+    openspec)
+        shift
+        "$OPENSPEC" "$@"
+        ;;
+    propose)
+        shift
+        "$OPENSPEC" propose "$@"
+        ;;
+    archive)
+        shift
+        "$OPENSPEC" archive "$@"
+        ;;
+    specs)
+        shift
+        "$OPENSPEC" specs "$@"
+        ;;
+    ui)
+        # Run interactive UI
+        "$PROJECT_ROOT/lib/ui.sh"
+        ;;
+    help|--help|-h)
+        cat <<EOF
+ADbS - Ai Dont be Stupid, please!
+
+Usage: workflow-enforcer <command> [args]
+(or use 'adbs' as a shorter alias)
+
+Commands:
+  status              Show current workflow status
+  validate            Validate current stage
+  next                Advance to next stage (if validated)
+  current             Get current stage name
+  set <stage>         Set stage manually (use with caution)
+  
+  task <cmd>          Task management commands
+    create <desc>     Create a new task
+    list              List all tasks
+    update <id>       Update a task
+    get <id>          Get task details
+    delete <id>       Delete a task
+    export [file]     Export tasks to JSON
+    import [file]     Import tasks from JSON
+  
+  platform <cmd>     Platform detection
+    detect            Detect current IDE/platform
+    rules-dir         Get rules directory for platform
+    rules-file        Get rules filename
+  
+  init                Initialize workflow in current directory
+  install-hooks       Install git hooks for workflow enforcement
+  update              Update ADbS to the latest version
+  
+  # OpenSpec Workflow
+  propose <name>      Create a new change proposal
+  archive <id>        Archive a completed change
+  specs               List system specifications
+  
+  openspec            Advanced OpenSpec commands (init, list)
+  version             Show current version
+  ui                  Run interactive UI
+  help                Show this help message
+
+Examples:
+  adbs init
+  adbs status
+  adbs validate
+  adbs next
+  adbs task create "Implement feature X" --priority high
+  adbs task list
+
+Note: 'adbs' is a shorter alias for 'workflow-enforcer'
+
+For more information, see README.md
+EOF
+        ;;
+    *)
+        echo "Unknown command: ${1:-}"
+        echo "Run 'adbs help' or 'workflow-enforcer help' for usage information"
+        exit 1
+        ;;
+esac
+

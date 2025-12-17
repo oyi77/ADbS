@@ -1,0 +1,68 @@
+---
+description: Standards for Specification-Driven Development (SDD)
+globs: .sdd/**/*
+alwaysApply: true
+---
+# SDD (Specification-Driven Development) Workflow Rules
+
+## Overview
+
+This project uses **SDD (Specification-Driven Development)** methodology to ensure systematic, high-quality development and prevent AI hallucinations.
+
+## SDD Workflow Stages
+
+You MUST follow these stages in order:
+
+1. **Plan** - Create plan document in `.sdd/plans/*.md`
+2. **Requirements** - Define functional and non-functional requirements in `.sdd/requirements/*.plan<id>.md`
+3. **Design** - Create architecture and design documents in `.sdd/designs/*.plan<id>.md`
+4. **Tasks** - Break down work into specific tasks in `.sdd/tasks/*.plan<id>.md`
+
+## Plan ID System
+
+- Each plan gets an incremental ID: `plan-001`, `plan-002`, etc.
+- All SDD artifacts link to a plan via filename: `requirements.plan-001.md`, `design.plan-001.md`, `tasks.plan-001.md`
+- Plan metadata is tracked in `.sdd/plans/.index.json`
+
+## Requirements Stage
+
+- Use template: `templates/sdd/requirements.md.template`
+- Define functional requirements with acceptance criteria
+- Define non-functional requirements (performance, security, scalability)
+- Document constraints and assumptions
+- Save to `.sdd/requirements/requirements.plan<id>.md`
+- Minimum 500 words required
+
+## Design Stage
+
+- Use template: `templates/sdd/design.md.template`
+- Define architecture and components
+- Document data flow
+- Specify technology choices with rationale
+- Document security and error handling
+- Save to `.sdd/designs/design.plan<id>.md`
+- Minimum 500 words required
+
+## Tasks Stage
+
+- Use template: `templates/sdd/tasks.md.template`
+- Break down work into specific, actionable tasks
+- Define task dependencies
+- Prioritize tasks
+- Minimum 3 tasks required
+- Save to `.sdd/tasks/tasks.plan<id>.md`
+
+## Prohibited Behaviors
+
+1. **DO NOT** skip stages - each stage must be completed before moving to the next
+2. **DO NOT** start implementation without completing requirements and design
+3. **DO NOT** create tasks without linking them to a plan
+4. **DO NOT** proceed to execution without task assignment
+
+## Best Practices
+
+1. **Always validate** before moving to the next stage
+2. **Document thoroughly** - better to over-document than under-document
+3. **Link artifacts** - reference requirements in design, design in tasks
+4. **Use plan IDs** - always link artifacts to their plan
+

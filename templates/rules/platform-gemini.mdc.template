@@ -1,0 +1,25 @@
+# Gemini-Specific Rules
+
+## Platform Detection
+
+This project is configured for **Gemini AI**. Rules are automatically applied when Gemini is detected.
+
+## Gemini Integration
+
+- Rules files are located in `.gemini/rules/`
+- Multiple rule files (`.mdc`) are supported
+- Gemini automatically reads rules from `.gemini/rules/*.mdc`
+
+## Workflow Integration
+
+- Use `adbs` commands for workflow management (shorter alias for `workflow-enforcer`)
+- SDD artifacts are stored in `.sdd/` directory structure
+- Plan-based workflow with incremental plan IDs
+
+## Best Practices for Gemini
+
+1. **Use Gemini's AI features** in conjunction with SDD workflow
+2. **Reference plan IDs** when discussing requirements, design, or tasks
+3. **Update task status** as you work through implementation
+4. **Follow stage validation** before proceeding to next stage
+

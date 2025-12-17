@@ -1,0 +1,73 @@
+---
+description: Task management rules and commands
+globs: .workflow-enforcer/tasks.json
+alwaysApply: false
+---
+# Beads Task Management Rules
+
+## Overview
+
+This project uses **Beads** (or compatible task manager) for hierarchical task management and tracking.
+
+## Task Management Commands
+
+### Create a Task
+
+```bash
+adbs task create "Task description" --priority high
+```
+
+### List Tasks
+
+```bash
+adbs task list
+adbs task list --status todo
+adbs task list --priority high
+```
+
+### Update Task Status
+
+```bash
+adbs task update <id> --status in-progress
+adbs task update <id> --status done
+```
+
+### Task Hierarchy
+
+Tasks can have parent-child relationships:
+- Parent task: `task-abc`
+- Child tasks: `task-abc.1`, `task-abc.2`
+
+### Task Dependencies
+
+Tasks can depend on other tasks. Use the `depends_on` field when creating or updating tasks.
+
+### Task Tags
+
+Tasks can be tagged for better organization:
+```bash
+adbs task update <id> --tags "frontend,urgent"
+```
+
+## Task Lifecycle
+
+1. **todo** - Task is created but not started
+2. **in-progress** - Task is actively being worked on
+3. **done** - Task is completed
+4. **blocked** - Task is blocked by dependencies or issues
+
+## Integration with SDD
+
+- Tasks should be created from the tasks document (`.sdd/tasks/tasks.plan<id>.md`)
+- Link tasks to their plan ID
+- Update task status as work progresses
+- Mark tasks complete when implementation is done
+
+## Best Practices
+
+1. **Create tasks** from the tasks document after design is complete
+2. **Update status** regularly as work progresses
+3. **Use dependencies** to track task relationships
+4. **Use tags** for better organization and filtering
+5. **Link to plan** - always reference the plan ID in task descriptions
+

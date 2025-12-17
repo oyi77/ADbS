@@ -1,0 +1,30 @@
+---
+description: Cursor-specific platform rules
+globs: .cursor/**/*
+alwaysApply: true
+---
+# Cursor-Specific Rules
+
+## Platform Detection
+
+This project is configured for **Cursor IDE**. Rules are automatically applied when Cursor is detected.
+
+## Cursor Integration
+
+- Rules files are located in `.cursor/rules/`
+- Multiple rule files (`.mdc`) are supported
+- Cursor automatically reads rules from `.cursor/rules/*.mdc`
+
+## Workflow Integration
+
+- Use `adbs` commands for workflow management (shorter alias for `workflow-enforcer`)
+- SDD artifacts are stored in `.sdd/` directory structure
+- Plan-based workflow with incremental plan IDs
+
+## Best Practices for Cursor
+
+1. **Use Cursor's AI features** in conjunction with SDD workflow
+2. **Reference plan IDs** when discussing requirements, design, or tasks
+3. **Update task status** as you work through implementation
+4. **Follow stage validation** before proceeding to next stage
+

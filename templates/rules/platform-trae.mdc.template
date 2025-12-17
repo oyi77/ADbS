@@ -1,0 +1,12 @@
+---
+description: Trae specific platform rules
+globs: .trae/**/*
+alwaysApply: true
+---
+# Trae-Specific Rules
+
+## Context
+
+- This project uses the ADbS workflow.
+- Trae reads rules from `.trae/config/project_rules.md`.
+- Use `adbs` for all workflow tasks.

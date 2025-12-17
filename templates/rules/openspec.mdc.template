@@ -1,0 +1,24 @@
+---
+description: OpenSpec Workflow Rules
+globs: openspec/**/*
+alwaysApply: true
+---
+# OpenSpec Workflow
+
+## Overview
+This project supports **OpenSpec**, a spec-driven development workflow.
+
+## Structure
+- `openspec/specs/`: Source of truth documentation.
+- `openspec/changes/`: Proposed changes.
+- `openspec/project.md`: Project context and conventions.
+
+## Workflow
+1. **Propose**: `adbs openspec propose "my-change"`
+2. **Edit**: Modify `openspec/changes/<id>/proposal.md`
+3. **Implement**: Code based on the proposal.
+4. **Archive**: `adbs openspec archive <id>`
+
+## Rules
+- All changes must start with a written proposal in `openspec/changes`.
+- Do not modify `openspec/specs` directly without a proposal.

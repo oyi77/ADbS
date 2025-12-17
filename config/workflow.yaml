@@ -1,0 +1,105 @@
+stages:
+  - explore
+  - plan
+  - sdd:
+      - requirements
+      - design
+      - tasks
+  - assign
+  - execution
+
+enforcement:
+  strict: true
+  allow_skip: false
+  require_validation: true
+  require_beads: false  # Optional, falls back to simple task manager
+
+sdd:
+  directory: .sdd
+  plans_dir: .sdd/plans
+  requirements_dir: .sdd/requirements
+  designs_dir: .sdd/designs
+  tasks_dir: .sdd/tasks
+  plan_id_format: plan-{NNN}  # Incremental: plan-001, plan-002, etc.
+  requirements:
+    required: true
+    template: templates/sdd/requirements.md.template
+    filename_pattern: requirements.plan{id}.md
+    validation:
+      - must_contain: ["functional_requirements", "non_functional_requirements"]
+      - min_length: 500
+  design:
+    required: true
+    template: templates/sdd/design.md.template
+    filename_pattern: design.plan{id}.md
+    validation:
+      - must_contain: ["architecture", "components", "data_flow"]
+      - min_length: 500
+  tasks:
+    required: true
+    template: templates/sdd/tasks.md.template
+    filename_pattern: tasks.plan{id}.md
+    validation:
+      - must_contain: ["task_list"]
+      - min_tasks: 3
+
+beads:
+  enabled: true
+  fallback: true  # Use simple task manager if beads unavailable
+  binary_path: bin/beads/bd
+  alternative: lib/task_manager/simple.sh
+  features:
+    hierarchical: true
+    dependencies: true
+    tags: true
+    comments: true
+    search: true
+
+platforms:
+  cursor:
+    rules_dir: .cursor
+    rules_subdir: rules
+    rules_format: .mdc
+    auto_generate: true
+  trae:
+    rules_dir: .trae
+    rules_subdir: rules
+    rules_format: .mdc
+    auto_generate: true
+  gemini:
+    rules_dir: .gemini
+    rules_subdir: rules
+    rules_format: .mdc
+    auto_generate: true
+  vscode:
+    rules_dir: .vscode
+    rules_subdir: rules
+    rules_format: .mdc
+    auto_generate: true
+  generic:
+    rules_dir: .ai-rules
+    rules_subdir: rules
+    rules_format: .mdc
+    auto_generate: true
+
+rules:
+  generator: lib/rules_generator.sh
+  templates_dir: templates/rules
+  auto_detect_features: true
+  files:
+    - sdd.mdc
+    - workflow.mdc
+    - beads.mdc  # If beads available
+    - tasks.mdc  # If task manager active
+    - {platform}.mdc  # Platform-specific
+
+windows:
+  prefer_powershell: true
+  fallback_to_bash: true
+  scripts:
+    platform_detector: lib/platform_detector.ps1
+    workflow_validator: lib/validator/workflow.ps1
+    task_manager: lib/task_manager/simple.ps1
+    cli: bin/workflow-enforcer.ps1
+    cli_alias: bin/adbs.ps1
+
