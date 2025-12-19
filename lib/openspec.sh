@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENSPEC_ROOT="openspec"
+OPENSPEC_ROOT=".openspec"
 
 # Initialize OpenSpec directory structure
 init_openspec() {
@@ -23,11 +23,21 @@ init_openspec() {
 # Project Context
 
 ## Overview
-Describe the project here.
+Describe your project goal and vision here.
 
-## Conventions
-- Formatting: ...
-- Tech Stack: ...
+## Tech Stack
+- **Language**: 
+- **Framework**: 
+- **Database**: 
+
+## Coding Conventions
+- Style Guide: 
+- Naming: snake_case / camelCase?
+
+## Workflow
+- Use \`adbs propose <name>\` to start a task.
+- Edit the generated proposal.
+- When done, \`adbs archive <name>\`.
 EOF
         fi
         
@@ -94,6 +104,7 @@ archive_change() {
     fi
     
     echo "Archiving change '$id'..."
+    mkdir -p "$OPENSPEC_ROOT/archive"
     mv "$src_path" "$dest_path"
     echo "Change archived to $dest_path"
 }
@@ -108,14 +119,26 @@ list_specs() {
     fi
 }
 
-# List contents
-list_openspec() {
+# Show status
+status_openspec() {
     echo "=== OpenSpec Status ==="
-    echo "Specs:"
-    ls "$OPENSPEC_ROOT/specs" 2>/dev/null | sed 's/^/  - /'
-    echo ""
-    echo "Active Changes:"
-    ls "$OPENSPEC_ROOT/changes" 2>/dev/null | sed 's/^/  - /'
+    if [ ! -d "$OPENSPEC_ROOT" ]; then
+        echo "OpenSpec not initialized. Run 'adbs openspec init'."
+        return 0
+    fi
+
+    local spec_count=$(ls "$OPENSPEC_ROOT/specs" 2>/dev/null | wc -l | tr -d ' ')
+    local change_count=$(ls "$OPENSPEC_ROOT/changes" 2>/dev/null | wc -l | tr -d ' ')
+    local archive_count=$(ls "$OPENSPEC_ROOT/archive" 2>/dev/null | wc -l | tr -d ' ')
+
+    echo "Specs: $spec_count"
+    echo "Active Proposals: $change_count"
+    if [ "$change_count" -gt 0 ]; then
+        ls "$OPENSPEC_ROOT/changes" 2>/dev/null | sed 's/^/  - /'
+    else
+        echo "  (None)"
+    fi
+    echo "Archived: $archive_count"
 }
 
 # Command Handler
@@ -134,11 +157,12 @@ case "${1:-}" in
     specs)
         list_specs
         ;;
-    list)
-        list_openspec
+    status|list)
+        status_openspec
         ;;
     *)
-        echo "Usage: adbs openspec {init|propose <name>|archive <id>|list}"
+        echo "Usage: adbs openspec {init|propose <name>|archive <id>|status|specs}"
         exit 1
         ;;
 esac
+

@@ -1,0 +1,18 @@
+
+# Generated / Runtime folders to ignore
+.sdd/
+.openspec/
+.workflow-enforcer/
+.cursor/
+.windsurf/
+.trae/
+.zed/
+.gemini/
+.vscode/
+.idea/
+.DS_Store
+.beads/
+
+# Keep .agent and .git
+!.agent/
+!.gitignore

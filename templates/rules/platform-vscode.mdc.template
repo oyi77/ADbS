@@ -1,0 +1,21 @@
+---
+description: VS Code specific rules
+globs: .vscode/**/*
+alwaysApply: true
+---
+# VS Code-Specific Rules
+
+## Platform Detection
+
+This project is configured for **VS Code**. Rules are located in `.vscode/rules/`.
+
+## Workflow Integration
+
+- Use `adbs` commands for workflow management.
+- SDD artifacts are stored in `.sdd/` directory structure.
+- OpenSpec is supported in `openspec/`.
+
+## Best Practices
+
+1. **Use the terminal** for `adbs` commands.
+2. **Follow the workflow** (OpenSpec or SDD).

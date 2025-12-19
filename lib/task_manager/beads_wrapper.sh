@@ -25,24 +25,33 @@ else
     export WORKFLOW_ENFORCER_DIR="$WORKFLOW_DIR"
     
     # Map beads commands to simple.sh commands
-    case "${1:-}" in
+    COMMAND="${1:-}"
+    shift || true
+
+    case "$COMMAND" in
         create)
-            shift
             # beads: bd create "description" --priority 1
-            # simple: simple.sh create "description" priority
-            local description=""
-            local priority="medium"
-            local parent=""
+            # simple: simple.sh create "description" priority parent depends tags
+            description=""
+            priority="medium"
+            parent=""
+            depends=""
+            tags=""
+            
+            # If first arg doesn't start with -, assume it's description
+            if [[ "$1" != -* ]]; then
+                description="$1"
+                shift
+            fi
             
             while [ $# -gt 0 ]; do
                 case "$1" in
-                    --priority)
+                    --priority|-p)
                         shift
                         case "$1" in
-                            1) priority="high" ;;
+                            0|1) priority="high" ;;
                             2) priority="medium" ;;
-                            3) priority="low" ;;
-                            4) priority="low" ;;
+                            3|4) priority="low" ;;
                             *) priority="$1" ;;
                         esac
                         shift
@@ -50,6 +59,24 @@ else
                     --parent)
                         shift
                         parent="$1"
+                        shift
+                        ;;
+                    --depends|-d)
+                        shift
+                        if [ -n "$depends" ]; then
+                            depends="$depends,$1"
+                        else
+                            depends="$1"
+                        fi
+                        shift
+                        ;;
+                    --tag|-t)
+                        shift
+                        if [ -n "$tags" ]; then
+                            tags="$tags,$1"
+                        else
+                            tags="$1"
+                        fi
                         shift
                         ;;
                     *)
@@ -61,119 +88,140 @@ else
                 esac
             done
             
-            "$SIMPLE_MANAGER" create "$description" "$priority" "$parent"
+            if [ -z "$description" ]; then
+                echo "Error: Description required"
+                exit 1
+            fi
+            
+            "$SIMPLE_MANAGER" create "$description" "$priority" "$parent" "$depends" "$tags"
             ;;
+            
         list)
-            shift
-            local status=""
-            local priority=""
+            status=""
+            priority=""
+            tag=""
+            desc=""
             
             while [ $# -gt 0 ]; do
                 case "$1" in
-                    --status)
+                    --status|-s)
                         shift
                         status="$1"
                         shift
                         ;;
-                    --priority)
+                    --priority|-p)
                         shift
                         priority="$1"
                         shift
                         ;;
+                    --tag|-t)
+                        shift
+                        tag="$1"
+                        shift
+                        ;;
                     *)
+                        desc="$1"
                         shift
                         ;;
                 esac
             done
             
-            "$SIMPLE_MANAGER" list "$status" "$priority"
+            "$SIMPLE_MANAGER" list "$status" "$priority" "$tag" "$desc"
             ;;
+            
         update)
+            id="$1"
             shift
-            local id="$1"
-            shift
-            
-            local field=""
-            local value=""
-            
-            while [ $# -gt 0 ]; do
-                case "$1" in
-                    --status)
-                        field="status"
-                        shift
-                        value="$1"
-                        shift
-                        ;;
-                    --priority)
-                        field="priority"
-                        shift
-                        case "$1" in
-                            1) value="high" ;;
-                            2) value="medium" ;;
-                            3) value="low" ;;
-                            4) value="low" ;;
-                            *) value="$1" ;;
-                        esac
-                        shift
-                        ;;
-                    --description)
-                        field="description"
-                        shift
-                        value="$1"
-                        shift
-                        ;;
-                    *)
-                        shift
-                        ;;
-                esac
-            done
-            
-            if [ -n "$field" ] && [ -n "$value" ]; then
-                "$SIMPLE_MANAGER" update "$id" "$field" "$value"
-            else
-                echo "Error: Must specify field and value"
+            if [ -z "$id" ]; then
+                echo "Error: Task ID required"
                 exit 1
             fi
+
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --status|-s)
+                        shift
+                        "$SIMPLE_MANAGER" update "$id" "status" "$1"
+                        shift
+                        ;;
+                    --priority|-p)
+                        shift
+                        val="$1"
+                        case "$val" in
+                            0|1) val="high" ;;
+                            2) val="medium" ;;
+                            3|4) val="low" ;;
+                        esac
+                        "$SIMPLE_MANAGER" update "$id" "priority" "$val"
+                        shift
+                        ;;
+                    --description|-d)
+                        shift
+                        "$SIMPLE_MANAGER" update "$id" "description" "$1"
+                        shift
+                        ;;
+                     --depends)
+                        shift
+                        "$SIMPLE_MANAGER" update "$id" "depends_on" "$1"
+                        shift
+                        ;;
+                    --tags)
+                        shift
+                        "$SIMPLE_MANAGER" update "$id" "tags" "$1"
+                        shift
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
             ;;
+            
         show|get)
-            shift
             "$SIMPLE_MANAGER" get "$@"
             ;;
         delete|rm)
-            shift
             "$SIMPLE_MANAGER" delete "$@"
             ;;
         export)
-            shift
             "$SIMPLE_MANAGER" export "$@"
             ;;
         import)
-            shift
             "$SIMPLE_MANAGER" import "$@"
             ;;
         tree)
-            shift
             "$SIMPLE_MANAGER" tree "$@"
             ;;
         report)
-            shift
             "$SIMPLE_MANAGER" report "$@"
             ;;
-        *)
+        depends|dep)
+             # Handle 'bd dep add <child> <parent>'
+             subcmd="$1"
+             shift
+             if [ "$subcmd" = "add" ]; then
+                 child="$1"
+                 parent="$2"
+                 "$SIMPLE_MANAGER" update "$child" "parent" "$parent"
+             else
+                 echo "Unknown depends command: $subcmd"
+             fi
+             ;;
+        help|--help|-h)
             echo "Beads wrapper - using simple task manager (beads binary not found)"
-            echo ""
-            echo "Usage: $0 {create|list|update|show|delete|export|import} [args]"
-            echo ""
-            echo "Commands:"
-            echo "  create <description> [--priority 1-4] [--parent <id>]"
-            echo "  list [--status <status>] [--priority <priority>]"
-            echo "  update <id> [--status <status>] [--priority <priority>] [--description <desc>]"
-            echo "  show <id>"
-            echo "  delete <id>"
-            echo "  export [file]"
-            echo "  import [file]"
-            exit 1
+            echo "Usage: bd {create|list|update|show|delete|tree} [args]"
+            exit 0
+            ;;
+        *)
+            if [ -z "$COMMAND" ]; then
+                 "$SIMPLE_MANAGER" list
+            else
+                echo "Unknown command: $COMMAND"
+                echo "Use --help for usage."
+                exit 1
+            fi
             ;;
     esac
 fi
+
 
