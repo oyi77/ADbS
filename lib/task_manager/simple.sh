@@ -7,10 +7,16 @@ set -e
 TASKS_FILE="${WORKFLOW_ENFORCER_DIR:-.workflow-enforcer}/tasks.json"
 JQ_CMD=""
 
+# Check dependencies once
+HAS_JQ=0
+HAS_PYTHON3=0
+if command -v jq &> /dev/null; then HAS_JQ=1; fi
+if command -v python3 &> /dev/null; then HAS_PYTHON3=1; fi
+
 # Check if jq is available, otherwise use awk/sed
-if command -v jq &> /dev/null; then
+if [ "$HAS_JQ" -eq 1 ]; then
     JQ_CMD="jq"
-elif command -v python3 &> /dev/null; then
+elif [ "$HAS_PYTHON3" -eq 1 ]; then
     JQ_CMD="python3"
 else
     JQ_CMD="awk"
@@ -34,7 +40,10 @@ init_tasks() {
 
 # Generate a short random ID (similar to beads format)
 generate_id() {
-    if command -v python3 &> /dev/null; then
+    if [ -e /dev/urandom ] && command -v md5sum >/dev/null; then
+        # Fast generation using system random source (Linux/macOS)
+        head -c 10 /dev/urandom | md5sum | cut -c 1-6
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 -c "import uuid; print(str(uuid.uuid4())[:6])"
     else
         # Fallback
@@ -433,7 +442,7 @@ import_tasks() {
 # Print tasks tree
 print_tree() {
     init_tasks
-    if command -v python3 &> /dev/null; then
+    if [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 import sys
@@ -498,7 +507,7 @@ PYTHON
 # Print tasks report (markdown)
 print_report() {
     init_tasks
-    if command -v python3 &> /dev/null; then
+    if [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 import sys
