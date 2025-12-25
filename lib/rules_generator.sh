@@ -94,7 +94,7 @@ generate_platform_rules() {
              if [[ "$file" == *.mdc ]]; then
                  local base_name=$(basename "$file" .mdc)
                  mkdir -p "$rules_dir/rules/$base_name"
-                 mv "$rules_dir/rules/$file" "$rules_dir/rules/$base_name/RULE.md"
+                 mv "$rules_dir/$file" "$rules_dir/rules/$base_name/RULE.md"
              fi
          done
          # Clear and rebuild list
@@ -183,7 +183,7 @@ case "${1:-}" in
             generate_all_rules
         fi
         ;;
-    check)
+    list|check)
         # Check what rules would be generated
         echo "Beads available: $(check_beads_available && echo 'yes' || echo 'no')"
         echo "Task manager active: $(check_task_manager_active && echo 'yes' || echo 'no')"
@@ -193,11 +193,11 @@ case "${1:-}" in
         done
         ;;
     *)
-        echo "Usage: $0 {generate [platform]|check}"
+        echo "Usage: $0 {generate [platform]|list|check}"
         echo ""
         echo "Commands:"
         echo "  generate [platform]  - Generate rules for platform (or all if not specified)"
-        echo "  check                 - Check what rules would be generated"
+        echo "  list|check           - Check what rules would be generated"
         exit 1
         ;;
 esac

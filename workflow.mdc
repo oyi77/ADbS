@@ -1,0 +1,100 @@
+---
+description: Workflow enforcement rules for ADbS
+globs: *
+alwaysApply: true
+---
+# Workflow Enforcement Rules
+
+## Overview
+
+This project enforces a structured workflow to ensure systematic development and prevent AI hallucinations.
+
+## Workflow Stages
+
+You MUST follow these stages in order:
+
+1. **Explore** - Research and understand the problem
+2. **Plan** - Outline objectives and approach (create plan in `.sdd/plans/`)
+3. **SDD - Requirements** - Define requirements (`.sdd/requirements/requirements.plan<id>.md`)
+4. **SDD - Design** - Create design (`.sdd/designs/design.plan<id>.md`)
+5. **SDD - Tasks** - Break down tasks (`.sdd/tasks/tasks.plan<id>.md`)
+6. **Assign** - Use task manager to track tasks
+7. **Execution** - Implement and test
+
+## Stage Enforcement
+
+### Before Starting Any Stage
+
+1. Check the current stage: Read `.workflow-enforcer/current-stage`
+2. Validate previous stage completion: Run `adbs validate`
+3. Only proceed if validation passes
+
+### Stage Validation
+
+Each stage must be validated before moving to the next:
+
+```bash
+# Validate current stage
+adbs validate
+
+# Move to next stage (only if validated)
+adbs next
+```
+
+### Stage Requirements
+
+#### Explore Stage
+- Document research findings
+- Understand problem domain
+- Identify constraints and assumptions
+- Create exploration notes
+
+#### Plan Stage
+- Create plan document in `.sdd/plans/*.md`
+- Outline high-level objectives
+- Define strategies and approach
+- Minimum 200 words required
+
+#### SDD Stages
+- Requirements: `.sdd/requirements/requirements.plan<id>.md` (500+ words)
+- Design: `.sdd/designs/design.plan<id>.md` (500+ words)
+- Tasks: `.sdd/tasks/tasks.plan<id>.md` (minimum 3 tasks)
+
+#### Assign Stage
+- Use task manager to create tasks
+- Link tasks to requirements and design
+- Set task dependencies
+- At least one task must be created
+
+#### Execution Stage
+- Implement tasks in priority order
+- Follow design specifications
+- Update task status regularly
+- Mark tasks complete when done
+
+## Validation Rules
+
+### Stage Transition Rules
+
+- **Explore → Plan**: Exploration notes must exist
+- **Plan → Requirements**: Plan document must exist (200+ words)
+- **Requirements → Design**: Requirements document must be complete (500+ words, all required sections)
+- **Design → Tasks**: Design document must be complete (500+ words, all required sections)
+- **Tasks → Assign**: Tasks document must have minimum 3 tasks
+- **Assign → Execution**: At least one task must be created in task manager
+
+## Prohibited Behaviors
+
+1. **DO NOT** skip stages - each stage must be completed before moving to the next
+2. **DO NOT** start implementation without completing requirements and design
+3. **DO NOT** create tasks without linking them to requirements
+4. **DO NOT** proceed to execution without task assignment
+5. **DO NOT** modify artifacts after stage completion without validation
+
+## Best Practices
+
+1. **Always validate** before moving to the next stage
+2. **Document thoroughly** - better to over-document than under-document
+3. **Link artifacts** - reference requirements in design, design in tasks
+4. **Update task status** regularly as work progresses
+5. **Review and refine** - iterate on requirements and design before execution

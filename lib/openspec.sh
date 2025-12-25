@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENSPEC_ROOT=".openspec"
+OPENSPEC_ROOT="${OPENSPEC_ROOT:-.openspec}"
 
 # Initialize OpenSpec directory structure
 init_openspec() {

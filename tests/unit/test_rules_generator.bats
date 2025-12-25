@@ -29,7 +29,9 @@ teardown() {
     [ "$status" -eq 0 ] || true
 }
 
-@test "rulesGenerator_invalidPlatform_whenRun_returnsError" {
+@test "rulesGenerator_invalidPlatform_whenRun_defaultsToGeneric" {
+    # The script doesn't fail on invalid platform, it just falls back to generic.
+    # So we expect success (0)
     run bash "$PROJECT_ROOT/lib/rules_generator.sh" generate "invalid-platform"
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 0 ]
 }

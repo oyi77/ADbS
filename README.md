@@ -27,7 +27,7 @@ curl -sSL https://raw.githubusercontent.com/your-username/ADbS/main/install.sh |
 
 Detailed documentation is available in the **`docs/`** directory:
 
-*   **[User Guide](docs/user_guide.md)**: Instructions for OpenSpec and Classic workflows.
+*   **[User Guide](docs/USER_GUIDE.md)**: Instructions for OpenSpec and Classic workflows.
 *   **[Reference Guide](docs/REFERENCE.md)**: Commands, configuration, and directory structure.
 *   **[Architecture](docs/ARCHITECTURE.md)**: Deep dive into ADbS internals.
 *   **[Contributing](docs/CONTRIBUTING.md)**: How to help build ADbS.
@@ -41,7 +41,7 @@ Detailed documentation is available in the **`docs/`** directory:
 
 ### 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) (coming soon).
+We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md).
 
 ---
 

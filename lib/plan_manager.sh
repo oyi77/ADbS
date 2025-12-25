@@ -218,8 +218,17 @@ case "${1:-}" in
     list)
         list_plans
         ;;
+    get)
+        shift
+        if [ -f "$PLANS_DIR/$1.md" ]; then
+            cat "$PLANS_DIR/$1.md"
+        else
+            echo "Plan $1 not found"
+            exit 1
+        fi
+        ;;
     *)
-        echo "Usage: $0 {generate|current|create|link|artifacts|list}"
+        echo "Usage: $0 {generate|current|create|link|artifacts|list|get}"
         echo ""
         echo "Commands:"
         echo "  generate              - Generate next plan ID"
@@ -228,6 +237,7 @@ case "${1:-}" in
         echo "  link <id> <type> <file> - Link artifact to plan"
         echo "  artifacts <id>       - Get artifacts for a plan"
         echo "  list                  - List all plans"
+        echo "  get <id>              - Get content of a plan"
         exit 1
         ;;
 esac
