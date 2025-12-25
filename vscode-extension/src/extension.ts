@@ -60,9 +60,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function runAdbsCommand(args: string, cwd: string) {
-    // Assuming 'adbs' is in PATH or using local bin
-    // For development, we might point to the local bin script
-    const cmd = `bash lib/validator/workflow.sh ${args}`; // Fallback/Dev mode
+    // Assumes 'adbs' is in PATH (installed via install.sh)
+    const cmd = `adbs ${args}`;
 
     vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,

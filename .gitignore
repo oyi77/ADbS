@@ -29,3 +29,4 @@ temp/
 # Keep .agent and .git
 !.agent/
 !.gitignore
+vscode-extension/node_modules/
