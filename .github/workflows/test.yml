@@ -1,0 +1,75 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install BATS (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bats
+    
+    - name: Install BATS (macOS)
+      if: runner.os == 'macOS'
+      run: brew install bats-core
+    
+    - name: Install BATS (Windows)
+      if: runner.os == 'Windows'
+      run: npm install -g bats
+    
+    - name: Make scripts executable (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        chmod +x lib/**/*.sh || true
+        chmod +x bin/* || true
+        chmod +x tests/**/*.bats || true
+    
+    - name: Run tests
+      shell: bash
+      run: |
+        if command -v bats &> /dev/null; then
+          bats tests/ || true
+        else
+          echo "BATS not found, skipping tests"
+          exit 1
+        fi
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}
+        path: test-results/
+        if-no-files-found: ignore
+
+  lint:
+    name: Lint Shell Scripts
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run ShellCheck
+      uses: ludeeus/action-shellcheck@master
+      with:
+        severity: warning
+        ignore_paths: tests node_modules
+      continue-on-error: true

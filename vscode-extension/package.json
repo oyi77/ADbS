@@ -1,0 +1,30 @@
+{
+    "name": "adbs-vscode",
+    "displayName": "ADbS Workflow Enforcer",
+    "description": "Integration for Ai Don't be Stupid (ADbS) workflow",
+    "version": "0.1.0",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "activationEvents": [
+        "onCommand:adbs.start"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "adbs.start",
+                "title": "ADbS: Start Workflow"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.0",
+        "typescript": "^4.9.5"
+    }
+}

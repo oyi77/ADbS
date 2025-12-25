@@ -1,0 +1,30 @@
+{
+    "name": "adbs-cli",
+    "version": "0.1.0",
+    "description": "Ai Don't be Stupid - Workflow Enforcer CLI",
+    "bin": {
+        "adbs": "./bin/adbs"
+    },
+    "scripts": {
+        "test": "bats tests/"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/your-username/ADbS.git"
+    },
+    "keywords": [
+        "ai",
+        "workflow",
+        "enforcer",
+        "cli"
+    ],
+    "author": "",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/your-username/ADbS/issues"
+    },
+    "homepage": "https://github.com/your-username/ADbS#readme",
+    "dependencies": {
+        "shelljs": "^0.8.5"
+    }
+}

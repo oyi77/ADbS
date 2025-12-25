@@ -12,6 +12,19 @@
 .idea/
 .DS_Store
 .beads/
+openspec/
+AGENTS.md
+
+# Test artifacts
+test-results/
+*.tap
+coverage/
+.bats-cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
 
 # Keep .agent and .git
 !.agent/
