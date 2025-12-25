@@ -296,9 +296,45 @@ validate_assign() {
     return 0
 }
 
-# Validate execution stage (always passes - execution is ongoing)
+# Validate execution stage
 validate_execution() {
-    echo "Execution stage - validation always passes (work in progress)"
+    local tasks_json="$WORKFLOW_DIR/tasks.json"
+
+    if [ ! -f "$tasks_json" ]; then
+        echo "Error: Task manager file not found ($tasks_json). Execution requires active tasks."
+        return 1
+    fi
+
+    if command -v jq &> /dev/null; then
+        local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
+        if [ "$task_count" -lt 1 ]; then
+            echo "Error: No tasks found in task manager"
+            return 1
+        fi
+
+        local completed_count=$(jq '[.tasks[] | select(.status == "completed")] | length' "$tasks_json" 2>/dev/null || echo "0")
+        local progress_count=$(jq '[.tasks[] | select(.status == "in_progress")] | length' "$tasks_json" 2>/dev/null || echo "0")
+
+        echo "Execution stage validated ($task_count tasks: $progress_count in progress, $completed_count completed)"
+
+    elif command -v python3 &> /dev/null; then
+        local task_count=$(python3 -c "import json; data=json.load(open('$tasks_json')); print(len(data.get('tasks', [])))" 2>/dev/null || echo "0")
+        if [ "$task_count" -lt 1 ]; then
+            echo "Error: No tasks found in task manager"
+            return 1
+        fi
+
+        echo "Execution stage validated ($task_count tasks found)"
+
+    else
+        # Basic check
+        if ! grep -q "\"id\"" "$tasks_json" 2>/dev/null; then
+            echo "Error: No tasks found in task manager"
+            return 1
+        fi
+        echo "Execution stage validated"
+    fi
+
     return 0
 }
 
