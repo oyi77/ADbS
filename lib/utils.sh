@@ -38,6 +38,30 @@ check_json_processor() {
     fi
 }
 
+# Check dependencies
+check_dependencies() {
+    local missing=()
+    for cmd in "$@"; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "Missing dependencies: ${missing[*]}"
+        return 1
+    fi
+    return 0
+}
+
+# Ensure directory exists
+ensure_dir() {
+    local dir="$1"
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+    fi
+}
+
 # JSON helpers
 json_get_key() {
     local file="$1"

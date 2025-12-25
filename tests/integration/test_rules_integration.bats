@@ -19,7 +19,7 @@ teardown() {
     local output_file="$TEMP_DIR/cursor.mdc"
     
     # Run generator
-    run bash "$PROJECT_ROOT/lib/rules/dynamic_generator.sh" "cursor" "dev" "$output_file"
+    run bash "$PROJECT_ROOT/lib/rules/dynamic_generator.sh" "cursor" "$output_file" "dev"
     
     [ "$status" -eq 0 ]
     assert_file_exists "$output_file"
@@ -40,7 +40,7 @@ teardown() {
     local output_file="$TEMP_DIR/cursor_ps.mdc"
     
     # Run PS generator
-    run powershell -File "$PROJECT_ROOT/lib/rules/dynamic_generator.ps1" -Platform "cursor" -Context "dev" -OutputFile "$output_file"
+    run powershell -File "$PROJECT_ROOT/lib/rules/dynamic_generator.ps1" -Platform "cursor" -OutputFile "$output_file" -Context "dev"
     
     [ "$status" -eq 0 ]
     assert_file_exists "$output_file"
@@ -52,7 +52,7 @@ teardown() {
     cd "$TEMP_DIR"
     local output_file="$TEMP_DIR/qa.mdc"
     
-    run bash "$PROJECT_ROOT/lib/rules/dynamic_generator.sh" "cursor" "qa" "$output_file"
+    run bash "$PROJECT_ROOT/lib/rules/dynamic_generator.sh" "cursor" "$output_file" "qa"
     
     [ "$status" -eq 0 ]
     run cat "$output_file"
