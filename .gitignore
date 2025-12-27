@@ -31,3 +31,4 @@ temp/
 !.gitignore
 vscode-extension/node_modules/
 vscode-extension/out/
+dashboard/node_modules/
