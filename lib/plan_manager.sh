@@ -11,6 +11,12 @@ DESIGNS_DIR="$SDD_DIR/designs"
 TASKS_DIR="$SDD_DIR/tasks"
 PLAN_INDEX="$PLANS_DIR/.index.json"
 
+# Check dependencies once
+HAS_JQ=0
+HAS_PYTHON3=0
+if command -v jq &> /dev/null; then HAS_JQ=1; fi
+if command -v python3 &> /dev/null; then HAS_PYTHON3=1; fi
+
 # Initialize plan index
 init_plan_index() {
     mkdir -p "$PLANS_DIR" "$REQUIREMENTS_DIR" "$DESIGNS_DIR" "$TASKS_DIR"
@@ -30,9 +36,9 @@ generate_plan_id() {
     init_plan_index
     
     local next_id
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         next_id=$(jq -r '.next_id' "$PLAN_INDEX" 2>/dev/null || echo "1")
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         next_id=$(python3 -c "import json; data=json.load(open('$PLAN_INDEX')); print(data.get('next_id', 1))" 2>/dev/null || echo "1")
     else
         # Fallback: extract from file
@@ -46,9 +52,9 @@ generate_plan_id() {
 get_current_plan_id() {
     init_plan_index
     
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         jq -r '.plans[] | select(.status == "active") | .id' "$PLAN_INDEX" 2>/dev/null | head -n 1
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 try:
@@ -74,14 +80,14 @@ create_plan() {
     init_plan_index
     
     # Deactivate all other plans
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         jq '.plans[].status = "inactive" | .plans += [{
       "id": "'"$plan_id"'",
       "created_at": "'"$timestamp"'",
       "status": "active",
       "artifacts": {}
     }] | .next_id += 1' "$PLAN_INDEX" > "${PLAN_INDEX}.tmp" && mv "${PLAN_INDEX}.tmp" "$PLAN_INDEX"
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 from datetime import datetime
@@ -122,11 +128,11 @@ link_artifact() {
     
     init_plan_index
     
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         jq --arg plan_id "$plan_id" --arg type "$artifact_type" --arg file "$filename" \
            '(.plans[] | select(.id == $plan_id) | .artifacts[$type]) = $file' \
            "$PLAN_INDEX" > "${PLAN_INDEX}.tmp" && mv "${PLAN_INDEX}.tmp" "$PLAN_INDEX"
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 
@@ -155,9 +161,9 @@ get_plan_artifacts() {
     
     init_plan_index
     
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         jq -r --arg plan_id "$plan_id" '.plans[] | select(.id == $plan_id) | .artifacts' "$PLAN_INDEX" 2>/dev/null
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 
@@ -178,9 +184,9 @@ PYTHON
 list_plans() {
     init_plan_index
     
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         jq -r '.plans[] | "\(.id) | \(.status) | \(.created_at)"' "$PLAN_INDEX" 2>/dev/null
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 
