@@ -16,6 +16,12 @@ DESIGNS_DIR="$SDD_DIR/designs"
 TASKS_DIR="$SDD_DIR/tasks"
 PLAN_MANAGER="$PROJECT_ROOT/lib/plan_manager.sh"
 
+# Check dependencies once
+HAS_JQ=0
+HAS_PYTHON3=0
+if command -v jq &> /dev/null; then HAS_JQ=1; fi
+if command -v python3 &> /dev/null; then HAS_PYTHON3=1; fi
+
 # Initialize workflow directory
 init_workflow() {
     mkdir -p "$SDD_DIR/plans" "$SDD_DIR/requirements" "$SDD_DIR/designs" "$SDD_DIR/tasks"
@@ -268,13 +274,13 @@ validate_assign() {
     # Check if using beads or simple task manager
     if [ -f "$tasks_json" ]; then
         # Check if tasks.json has at least one task
-        if command -v jq &> /dev/null; then
+        if [ "$HAS_JQ" -eq 1 ]; then
             local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
             if [ "$task_count" -lt 1 ]; then
                 echo "Error: At least one task must be created in task manager"
                 return 1
             fi
-        elif command -v python3 &> /dev/null; then
+        elif [ "$HAS_PYTHON3" -eq 1 ]; then
             local task_count=$(python3 -c "import json; data=json.load(open('$tasks_json')); print(len(data.get('tasks', [])))" 2>/dev/null || echo "0")
             if [ "$task_count" -lt 1 ]; then
                 echo "Error: At least one task must be created in task manager"
@@ -305,7 +311,7 @@ validate_execution() {
         return 1
     fi
 
-    if command -v jq &> /dev/null; then
+    if [ "$HAS_JQ" -eq 1 ]; then
         local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
         if [ "$task_count" -lt 1 ]; then
             echo "Error: No tasks found in task manager"
@@ -317,7 +323,7 @@ validate_execution() {
 
         echo "Execution stage validated ($task_count tasks: $progress_count in progress, $completed_count completed)"
 
-    elif command -v python3 &> /dev/null; then
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         local task_count=$(python3 -c "import json; data=json.load(open('$tasks_json')); print(len(data.get('tasks', [])))" 2>/dev/null || echo "0")
         if [ "$task_count" -lt 1 ]; then
             echo "Error: No tasks found in task manager"
