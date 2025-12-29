@@ -32,10 +32,6 @@ init_tasks() {
     if [ ! -f "$TASKS_FILE" ]; then
         echo '{"tasks":[],"next_id":1}' > "$TASKS_FILE"
     fi
-    # Ensure tasks have all new fields
-    if [ "$JQ_CMD" = "jq" ]; then
-        jq '.tasks[] |= (. + {tags: (.tags // []), depends_on: (.depends_on // []), comments: (.comments // [])})' "$TASKS_FILE" > "${TASKS_FILE}.tmp" 2>/dev/null && mv "${TASKS_FILE}.tmp" "$TASKS_FILE" || true
-    fi
 }
 
 # Generate a short random ID (similar to beads format)
