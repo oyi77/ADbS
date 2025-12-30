@@ -1,0 +1,6 @@
+{
+    "platform": "cursor",
+    "rules_dir": ".cursorrules",
+    "max_file_size_kb": 2,
+    "supports_multi_file": true
+}

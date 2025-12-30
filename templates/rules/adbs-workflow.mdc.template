@@ -1,0 +1,181 @@
+---
+description: ADbS workflow automation rules
+globs: .adbs/**/*
+alwaysApply: true
+---
+# ADbS Workflow Automation
+
+## Auto-Generation Trigger
+
+When the user runs `adbs new "feature description"` or mentions creating new work:
+
+1. **Automatically read** `.agent/workflows/adbs-new.md`
+2. **Generate complete workflow** without asking:
+   - requirements.md
+   - proposal.md
+   - design.md
+   - tasks.md
+3. **Initialize state** to PLANNING (completed)
+
+## Workflow States
+
+Work progresses through these states with validation gates:
+
+```
+PLANNING → DESIGNING → IMPLEMENTING → TESTING → REVIEWING → DONE
+```
+
+### Current State Detection
+
+Check current state with:
+```bash
+adbs workflow <work-name>
+```
+
+### State-Specific Behavior
+
+**PLANNING State:**
+- Read: `.agent/workflows/adbs-new.md`
+- Generate: requirements.md, proposal.md, design.md, tasks.md
+- Focus: WHAT to build (not HOW)
+- Output: Complete workflow ready for review
+
+**DESIGNING State:**
+- Read: design.md, requirements.md
+- Refine: Architecture based on feedback
+- Focus: Components, interfaces, data flow
+
+**IMPLEMENTING State:**
+- Read: `templates/agents/implementer.md`
+- Follow: design.md strictly
+- Write: Code + comprehensive tests
+- Validate: Linting passes, tests pass, coverage >80%
+
+**TESTING State:**
+- Run: Full test suite
+- Verify: Coverage >80%
+- Check: No security vulnerabilities
+
+**REVIEWING State:**
+- Review: Code quality, security, tests
+- Verify: All requirements met
+- Approve or request changes
+
+## Commands Available
+
+```bash
+# Create new work (auto-generates workflow)
+adbs new "feature description"
+adbs new "feature description" --ai-generate
+
+# Check workflow state
+adbs workflow <work-name>
+
+# Check if ready to advance
+adbs progress <work-name>
+
+# Advance to next state
+adbs advance <work-name>
+
+# Approve and advance
+adbs approve <work-name>
+
+# Block when issues found
+adbs block <work-name> "reason"
+
+# View work details
+adbs show <work-name>
+
+# List all work
+adbs list
+```
+
+## File Structure
+
+When work is created, files are organized as:
+
+```
+.adbs/work/<date>-<work-name>/
+├── requirements.md    # Functional + non-functional requirements
+├── proposal.md       # Scope, approach, success criteria
+├── design.md         # Architecture, components, data flow
+├── tasks.md          # Broken down tasks by phase
+└── .state            # State tracking (JSON)
+```
+
+## Validation Gates
+
+Cannot advance to next state until criteria met:
+
+| From State | To State | Criteria |
+|-----------|----------|----------|
+| PLANNING | DESIGNING | Requirements documented, proposal approved |
+| DESIGNING | IMPLEMENTING | Design complete, architecture approved |
+| IMPLEMENTING | TESTING | All tasks done, tests pass, linting passes |
+| TESTING | REVIEWING | Test suite passes, coverage >80% |
+| REVIEWING | DONE | Code reviewed, security checked |
+
+## Key Principles
+
+1. **Auto-generate** - Don't ask user to create requirements/design manually
+2. **Be specific** - All requirements must be measurable
+3. **Follow design** - Implementation must match design.md
+4. **Validate gates** - Can't skip validation
+5. **Maintain quality** - Code must pass all checks
+
+## Example Workflow
+
+```bash
+# User creates work
+$ adbs new "Add OAuth2 authentication with JWT tokens"
+
+# AI automatically generates:
+Generating workflow...
+  ✓ Extracted 5 requirements
+  ✓ Generated proposal
+  ✓ Created design scaffold
+  ✓ Broke down into 30 tasks
+
+Created work: OAuth2-authentication
+Current state: PLANNING (completed)
+
+# User reviews and approves
+$ adbs show "OAuth2"
+$ adbs approve "OAuth2"
+
+# State advances to DESIGNING
+✓ Transitioned to DESIGNING
+
+# AI refines design based on feedback
+# User approves design
+$ adbs approve "OAuth2"
+
+# State advances to IMPLEMENTING
+✓ Transitioned to IMPLEMENTING
+
+# AI implements following design.md
+# Writes code + tests
+# Validates linting and tests
+
+# Check progress
+$ adbs progress "OAuth2"
+Current state: IMPLEMENTING
+  ✓ All tasks complete (30/30)
+  ✓ Tests passing
+  ✓ Linting passing
+Ready to advance to TESTING!
+
+# Advance to testing
+$ adbs advance "OAuth2"
+✓ Transitioned to TESTING
+
+# Continue through states until DONE
+```
+
+## Important Notes
+
+- **Always auto-generate** when `adbs new` is used
+- **Never ask** user to create requirements/design manually
+- **Follow templates** in `.agent/workflows/adbs-new.md`
+- **Validate strictly** before state transitions
+- **Maintain quality** through all phases

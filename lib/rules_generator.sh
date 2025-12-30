@@ -6,7 +6,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLATFORM_DETECTOR="$PROJECT_ROOT/lib/platform_detector.sh"
+TEMPLATE_PROCESSOR="$PROJECT_ROOT/lib/template_processor.sh"
 TEMPLATES_DIR="$PROJECT_ROOT/templates/rules"
+
+# Enable legacy mode if requested
+USE_LEGACY_GENERATOR="${ADBS_LEGACY_RULES:-0}"
 
 # Get rules directory for platform
 get_rules_dir_for_platform() {
@@ -26,6 +30,23 @@ check_task_manager_active() {
     [ -f "$tasks_file" ] || check_beads_available
 }
 
+# Detect current workflow
+detect_workflow() {
+    "$TEMPLATE_PROCESSOR" detect-workflow
+}
+
+# Check if SDD workflow is active
+check_sdd_active() {
+    local workflow=$(detect_workflow)
+    [[ "$workflow" == "SDD" || "$workflow" == "Hybrid" ]]
+}
+
+# Check if OpenSpec workflow is active
+check_openspec_active() {
+    local workflow=$(detect_workflow)
+    [[ "$workflow" == "OpenSpec" || "$workflow" == "Hybrid" ]]
+}
+
 # Generate rules file from template
 generate_rules_file() {
     local output_dir="$1"
@@ -43,7 +64,13 @@ generate_rules_file() {
         mkdir -p "$output_dir"
     fi
     
-    cp "$template_path" "$output_file"
+    # Use legacy mode if requested
+    if [ "$USE_LEGACY_GENERATOR" = "1" ]; then
+        cp "$template_path" "$output_file"
+    else
+        # Process template with variables and optimization
+        "$TEMPLATE_PROCESSOR" process-optimize "$template_path" "$output_file"
+    fi
 }
 
 # Generate rules for a platform
@@ -52,9 +79,11 @@ generate_platform_rules() {
     local rules_dir=$(get_rules_dir_for_platform "$platform")
     local generated_files=()
     
-    # Always generate core rules
-    generate_rules_file "$rules_dir" "sdd.mdc" "$TEMPLATES_DIR/sdd.mdc.template" && generated_files+=("sdd.mdc")
-    generate_rules_file "$rules_dir" "workflow.mdc" "$TEMPLATES_DIR/workflow.mdc.template" && generated_files+=("workflow.mdc")
+    # Generate workflow-specific rules
+    if check_sdd_active; then
+        generate_rules_file "$rules_dir" "sdd.mdc" "$TEMPLATES_DIR/sdd.mdc.template" && generated_files+=("sdd.mdc")
+        generate_rules_file "$rules_dir" "workflow.mdc" "$TEMPLATES_DIR/workflow.mdc.template" && generated_files+=("workflow.mdc")
+    fi
     
     # Generate beads rules if available
     if check_beads_available; then
@@ -67,9 +96,12 @@ generate_platform_rules() {
     fi
     
     # Generate OpenSpec rules if active
-    if [ -d "openspec" ]; then
+    if check_openspec_active; then
         generate_rules_file "$rules_dir" "openspec.mdc" "$TEMPLATES_DIR/openspec.mdc.template" && generated_files+=("openspec.mdc")
     fi
+    
+    # Always generate ADbS workflow rules (new abstracted interface)
+    generate_rules_file "$rules_dir" "adbs-workflow.mdc" "$TEMPLATES_DIR/adbs-workflow.mdc.template" && generated_files+=("adbs-workflow.mdc")
     
     # Generate platform-specific rules
     local platform_template="$TEMPLATES_DIR/platform-${platform}.mdc.template"
@@ -104,6 +136,7 @@ generate_platform_rules() {
          if [ -f "$rules_dir/rules/beads/RULE.md" ]; then generated_files+=("beads/RULE.md"); fi
          if [ -f "$rules_dir/rules/tasks/RULE.md" ]; then generated_files+=("tasks/RULE.md"); fi
          if [ -f "$rules_dir/rules/openspec/RULE.md" ]; then generated_files+=("openspec/RULE.md"); fi
+         if [ -f "$rules_dir/rules/adbs-workflow/RULE.md" ]; then generated_files+=("adbs-workflow/RULE.md"); fi
          if [ -f "$rules_dir/rules/platform/RULE.md" ]; then generated_files+=("platform/RULE.md"); fi
     elif [ "$platform" = "windsurf" ]; then
          # Windsurf specific handling - move into rules dir and rename extension
@@ -121,6 +154,7 @@ generate_platform_rules() {
          if [ -f "$rules_dir/rules/beads.md" ]; then generated_files+=("rules/beads.md"); fi
          if [ -f "$rules_dir/rules/tasks.md" ]; then generated_files+=("rules/tasks.md"); fi
          if [ -f "$rules_dir/rules/openspec.md" ]; then generated_files+=("rules/openspec.md"); fi
+         if [ -f "$rules_dir/rules/adbs-workflow.md" ]; then generated_files+=("rules/adbs-workflow.md"); fi
          if [ -f "$rules_dir/rules/platform.md" ]; then generated_files+=("rules/platform.md"); fi
     elif [ "$platform" = "zed" ] || [ "$platform" = "trae" ]; then
         # Single file concatenation mode

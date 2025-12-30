@@ -1,0 +1,6 @@
+{
+    "platform": "zed",
+    "rules_file": ".rules",
+    "max_file_size_kb": 10,
+    "supports_multi_file": false
+}

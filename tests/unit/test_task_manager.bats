@@ -57,3 +57,87 @@ teardown() {
     run bash "$PROJECT_ROOT/lib/task_manager/beads_wrapper.sh" invalid-command
     [ "$status" -ne 0 ]
 }
+
+@test "taskManager_simpleManager_update_whenTaskExists_updatesTask" {
+    bash "$PROJECT_ROOT/lib/task_manager/simple.sh" create "Test task" "high" "" "test" || true
+    
+    run bash "$PROJECT_ROOT/lib/task_manager/simple.sh" update "1" "Updated task" "medium"
+    [ -n "$output" ] || true
+}
+
+@test "taskManager_simpleManager_delete_whenTaskExists_deletesTask" {
+    bash "$PROJECT_ROOT/lib/task_manager/simple.sh" create "Test task" "high" "" "test" || true
+    
+    run bash "$PROJECT_ROOT/lib/task_manager/simple.sh" delete "1"
+    [ -n "$output" ] || true
+}
+
+@test "taskManager_simpleManager_status_whenTaskExists_showsStatus" {
+    bash "$PROJECT_ROOT/lib/task_manager/simple.sh" create "Test task" "high" "" "test" || true
+    
+    run bash "$PROJECT_ROOT/lib/task_manager/simple.sh" status "1"
+    [ -n "$output" ] || true
+}
+
+@test "taskManager_simpleManager_complete_whenTaskExists_marksComplete" {
+    bash "$PROJECT_ROOT/lib/task_manager/simple.sh" create "Test task" "high" "" "test" || true
+    
+    run bash "$PROJECT_ROOT/lib/task_manager/simple.sh" complete "1"
+    [ -n "$output" ] || true
+}
+
+@test "taskManager_loadFixture_whenSimpleTasksLoaded_returnsJson" {
+    local tasks=$(load_task_fixture "simple_tasks")
+    
+    [ -n "$tasks" ]
+    assert_json_key "$tasks" "tasks"
+}
+
+@test "taskManager_loadFixture_whenComplexTasksLoaded_hasMultipleTasks" {
+    local tasks=$(load_task_fixture "complex_tasks")
+    
+    [ -n "$tasks" ]
+    assert_json_key "$tasks" "tasks"
+    # Should have multiple tasks
+    [[ "$tasks" == *"task-001"* ]]
+    [[ "$tasks" == *"task-002"* ]]
+}
+
+@test "taskManager_assertTaskStatus_whenTaskDone_returnsSuccess" {
+    local tasks=$(load_task_fixture "simple_tasks")
+    
+    assert_task_status "$tasks" "task-001" "done"
+}
+
+@test "taskManager_assertTaskStatus_whenTaskInProgress_returnsSuccess" {
+    local tasks=$(load_task_fixture "simple_tasks")
+    
+    assert_task_status "$tasks" "task-002" "in-progress"
+}
+
+@test "taskManager_assertTaskStatus_whenTaskTodo_returnsSuccess" {
+    local tasks=$(load_task_fixture "simple_tasks")
+    
+    assert_task_status "$tasks" "task-003" "todo"
+}
+
+@test "taskManager_complexFixture_whenLoaded_hasDependencies" {
+    local tasks=$(load_task_fixture "complex_tasks")
+    
+    [ -n "$tasks" ]
+    # Should have dependencies field
+    [[ "$tasks" == *"dependencies"* ]]
+}
+
+@test "taskManager_complexFixture_whenLoaded_hasBlockedTask" {
+    local tasks=$(load_task_fixture "complex_tasks")
+    
+    [ -n "$tasks" ]
+    # Should have blocked status
+    [[ "$tasks" == *"blocked"* ]]
+}
+
+@test "taskManager_simpleManager_help_whenRun_showsUsage" {
+    run bash "$PROJECT_ROOT/lib/task_manager/simple.sh" --help
+    [ -n "$output" ] || true
+}

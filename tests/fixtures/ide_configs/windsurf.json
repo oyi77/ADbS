@@ -1,0 +1,6 @@
+{
+    "platform": "windsurf",
+    "rules_dir": ".windsurfrules",
+    "max_file_size_kb": 5,
+    "supports_multi_file": true
+}

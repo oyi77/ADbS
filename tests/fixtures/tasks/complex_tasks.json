@@ -1,0 +1,96 @@
+{
+    "tasks": [
+        {
+            "id": "task-001",
+            "title": "Design system architecture",
+            "description": "Create high-level architecture diagram and component breakdown",
+            "status": "done",
+            "priority": "high",
+            "tags": [
+                "architecture",
+                "design"
+            ],
+            "dependencies": [],
+            "created_at": "2025-12-15T08:00:00Z",
+            "started_at": "2025-12-15T09:00:00Z",
+            "completed_at": "2025-12-16T17:00:00Z"
+        },
+        {
+            "id": "task-002",
+            "title": "Implement authentication service",
+            "description": "Build JWT-based authentication with refresh tokens",
+            "status": "in-progress",
+            "priority": "high",
+            "tags": [
+                "backend",
+                "security"
+            ],
+            "dependencies": [
+                "task-001"
+            ],
+            "created_at": "2025-12-17T10:00:00Z",
+            "started_at": "2025-12-18T09:00:00Z"
+        },
+        {
+            "id": "task-003",
+            "title": "Create user management API",
+            "description": "REST API for user CRUD operations",
+            "status": "todo",
+            "priority": "high",
+            "tags": [
+                "backend",
+                "api"
+            ],
+            "dependencies": [
+                "task-002"
+            ],
+            "created_at": "2025-12-19T11:00:00Z"
+        },
+        {
+            "id": "task-004",
+            "title": "Build frontend dashboard",
+            "description": "React-based dashboard with charts and analytics",
+            "status": "todo",
+            "priority": "medium",
+            "tags": [
+                "frontend",
+                "ui"
+            ],
+            "dependencies": [
+                "task-003"
+            ],
+            "created_at": "2025-12-20T14:00:00Z"
+        },
+        {
+            "id": "task-005",
+            "title": "Write integration tests",
+            "description": "End-to-end tests for critical user flows",
+            "status": "todo",
+            "priority": "medium",
+            "tags": [
+                "testing",
+                "qa"
+            ],
+            "dependencies": [
+                "task-004"
+            ],
+            "created_at": "2025-12-21T10:00:00Z"
+        },
+        {
+            "id": "task-006",
+            "title": "Set up CI/CD pipeline",
+            "description": "GitHub Actions for automated testing and deployment",
+            "status": "blocked",
+            "priority": "low",
+            "tags": [
+                "devops",
+                "automation"
+            ],
+            "dependencies": [
+                "task-005"
+            ],
+            "blocked_reason": "Waiting for infrastructure approval",
+            "created_at": "2025-12-22T09:00:00Z"
+        }
+    ]
+}

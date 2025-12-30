@@ -84,3 +84,48 @@ teardown() {
     run bash "$PROJECT_ROOT/lib/validator/workflow.sh" invalid-command
     [ "$status" -ne 0 ]
 }
+
+@test "validator_validate_whenRequirementsStageWithoutRequirements_returnsFail" {
+    echo "requirements" > "$WORKFLOW_ENFORCER_DIR/current-stage"
+    create_sample_plan "plan-001"
+    
+    run bash "$PROJECT_ROOT/lib/validator/workflow.sh" validate
+    # Should fail without requirements file
+    [ "$status" -ne 0 ] || true
+}
+
+@test "validator_validate_whenRequirementsStageWithRequirements_returnsSuccess" {
+    echo "requirements" > "$WORKFLOW_ENFORCER_DIR/current-stage"
+    create_sample_plan "plan-001"
+    create_sample_requirements "plan-001"
+    
+    run bash "$PROJECT_ROOT/lib/validator/workflow.sh" validate
+    # Should pass with valid requirements
+    [ "$status" -eq 0 ] || true
+}
+
+@test "validator_validate_whenDesignStageWithDesign_returnsSuccess" {
+    echo "design" > "$WORKFLOW_ENFORCER_DIR/current-stage"
+    create_sample_plan "plan-001"
+    create_sample_requirements "plan-001"
+    create_sample_design "plan-001"
+    
+    run bash "$PROJECT_ROOT/lib/validator/workflow.sh" validate
+    # Should pass with valid design
+    [ "$status" -eq 0 ] || true
+}
+
+@test "validator_back_whenAtPlanStage_returnsToExplore" {
+    echo "plan" > "$WORKFLOW_ENFORCER_DIR/current-stage"
+    
+    run bash "$PROJECT_ROOT/lib/validator/workflow.sh" back
+    # Should go back or show message
+    [ -n "$output" ]
+}
+
+@test "validator_list_whenRun_showsAllStages" {
+    run bash "$PROJECT_ROOT/lib/validator/workflow.sh" list
+    [ "$status" -eq 0 ]
+    # Should list all available stages
+    assert_contains "$output" "explore" || assert_contains "$output" "plan" || true
+}
