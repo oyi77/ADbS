@@ -266,6 +266,17 @@ complete_work() {
         echo "Use 'adbs list' to see active work"
         exit 1
     fi
+
+    # Validate before completing
+    if [ -f "$VALIDATOR" ]; then
+        source "$VALIDATOR"
+        if ! validate_completion "$work_path"; then
+            echo "Use 'adbs done $name --force' to bypass."
+            if [ "${2:-}" != "--force" ]; then
+                exit 1
+            fi
+        fi
+    fi
     
     # Ensure archive directory exists
     mkdir -p "$ARCHIVE_DIR" || {
@@ -325,6 +336,47 @@ show_status() {
     fi
 }
 
+# Export context for LLM
+export_context() {
+    local name="$1"
+    
+     if [ -z "$name" ]; then
+        # Default to most recent work if no name provided
+        local recent=$(ls -td "$WORK_DIR"/* | head -1)
+        if [ -n "$recent" ]; then
+            name=$(basename "$recent" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//')
+        fi
+    fi
+    
+    if [ -z "$name" ]; then
+        echo "Error: Work name required"
+        exit 1
+    fi
+
+    local work_path=$(find_work_dir "$name")
+    if [ -z "$work_path" ]; then
+        echo "Error: Work '$name' not found"
+        exit 1
+    fi
+    
+    echo "# Context: $name"
+    echo ""
+    
+    if [ -f "$work_path/proposal.md" ]; then
+        echo "## Proposal"
+        cat "$work_path/proposal.md"
+        echo ""
+    fi
+    
+    if [ -f "$work_path/tasks.md" ]; then
+        echo "## Status"
+        cat "$work_path/tasks.md"
+        echo ""
+    fi
+    
+    # Check for memory items (files modified recently in this context? - Future todo)
+}
+
 # Main command handler
 case "${1:-}" in
     create|new)
@@ -338,6 +390,10 @@ case "${1:-}" in
     show)
         shift
         show_work "$@"
+        ;;
+    context)
+        shift
+        export_context "$@"
         ;;
     complete|done)
         shift

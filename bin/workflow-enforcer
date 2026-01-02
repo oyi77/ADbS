@@ -126,6 +126,12 @@ case "${1:-}" in
         shift
         "$WORK_MANAGER" show "$@"
         ;;
+   
+    context)
+        # Export context for LLM
+        shift
+        "$WORK_MANAGER" context "$@"
+        ;;
     
     list)
         # List all work and tasks
