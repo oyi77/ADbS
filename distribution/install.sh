@@ -139,13 +139,14 @@ detect_platform() {
         # Basic detection
         if [ -d ".cursor" ] || [ -n "${CURSOR}" ]; then
             echo "cursor"
-        elif [ -d ".trae" ] || [ -n "${TRAE}" ]; then
-            echo "trae"
-        elif [ -d ".vscode" ] || [ -n "${VSCODE}" ]; then
-            echo "vscode"
-        else
-            echo "generic"
-        fi
+        elif [ -d ".gemini" ] || [ -n "$GEMINI" ]; then
+        echo "gemini"
+    elif [ -d ".antigravity" ] || [ -n "$ANTIGRAVITY" ]; then
+        echo "antigravity"
+    elif [ -d ".vscode" ] || [ -n "$VSCODE" ] || [ -n "$CODE" ]; then
+        echo "vscode"
+    else
+        echo "generic"
     fi
 }
 
@@ -159,6 +160,9 @@ get_rules_dir() {
             ;;
         trae)
             echo ".trae"
+            ;;
+        gemini|antigravity)
+            echo ".gemini"
             ;;
         vscode)
             echo ".vscode"
@@ -229,6 +233,9 @@ generate_ide_commands() {
             ;;
         gemini)
             commands_dir=".gemini/commands"
+            ;;
+        antigravity)
+            commands_dir=".antigravity/commands"
             ;;
         vscode)
             commands_dir=".vscode/commands"
@@ -457,136 +464,216 @@ main() {
             cp bin/adbs .adbs/bin/adbs
             chmod +x .adbs/bin/adbs
         fi
+    # Main installation logic
+    
+    # 1. Determine Installation Level
+    local install_level="project"
+    local install_dir=""
+    local bin_link_dir=""
+    
+    # Check for requested level or auto-detect
+    if [ "$EUID" -eq 0 ]; then
+        # Running as root - Default to Global
+        install_level="global"
+        install_dir="/usr/local/share/adbs"
+        bin_link_dir="/usr/local/bin"
+    elif [ -n "$HOME" ] && [ -w "$HOME" ]; then
+        # Running as user - Default to User
+        install_level="user"
+        install_dir="$HOME/.adbs_tool"
+        bin_link_dir="$HOME/bin" # or ~/.local/bin
+        mkdir -p "$bin_link_dir"
     else
-        # Remote installation - create standalone adbs command
-        print_info "Downloading ADbS scripts..."
+        # Fallback to Project
+        install_level="project"
+        install_dir="$(pwd)/.adbs/internal"
+        bin_link_dir="$(pwd)/.adbs/bin"
+    fi
+    
+    # Allow override via env var
+    if [ -n "$ADBS_INSTALL_LEVEL" ]; then
+        case "$ADBS_INSTALL_LEVEL" in
+            global)
+                if [ "$EUID" -ne 0 ]; then
+                    print_error "Global installation requires root privileges"
+                    exit 1
+                fi
+                install_level="global"
+                install_dir="/usr/local/share/adbs"
+                bin_link_dir="/usr/local/bin"
+                ;;
+            user)
+                install_level="user"
+                install_dir="$HOME/.adbs_tool"
+                bin_link_dir="$HOME/.local/bin"
+                mkdir -p "$bin_link_dir"
+                ;;
+            project)
+                install_level="project"
+                install_dir="$(pwd)/.adbs/internal"
+                bin_link_dir="$(pwd)/.adbs/bin"
+                ;;
+        esac
+    fi
+    
+    print_info "Installing ADbS at $install_level level ($install_dir)..."
+    
+    # 2. Safety & Version Checks
+    local current_version="0.0.0"
+    if [ -f "$install_dir/VERSION" ]; then
+        current_version=$(cat "$install_dir/VERSION")
+        print_info "Found existing installation (v$current_version)"
         
-        # Cleanup old internal files to prevent conflicts
-        rm -f .adbs/internal/workflow-enforcer
-        rm -rf .adbs/internal/lib
-        rm -rf .adbs/internal/bin
+        # Simple version comparison could go here
+        # For now, we assume reinstall = upgrade
+        print_info "Upgrading to latest version..."
         
-        # Define base URL
-        local base_url="https://raw.githubusercontent.com/oyi77/ADbS/main"
+        # Backup existing config if any
+        if [ -d "$install_dir/config" ]; then
+            cp -r "$install_dir/config" "$install_dir/config_backup_$(date +%s)"
+        fi
+    fi
+    
+    # 3. Prepare Directories
+    mkdir -p "$install_dir/bin"
+    mkdir -p "$install_dir/lib/internal"
+    mkdir -p "$install_dir/lib/task_manager"
+    mkdir -p "$install_dir/config"
+    
+    # 4. Download/Install Files
+    local base_url="https://raw.githubusercontent.com/oyi77/ADbS/main"
+    
+    # Function to download to install_dir
+    download_to_install() {
+        local path="$1"
+        local dest="$install_dir/$path"
         
-        # Create directory structure to mirror repo
-        mkdir -p .adbs/internal/bin
-        mkdir -p .adbs/internal/lib/internal
-        mkdir -p .adbs/internal/lib/task_manager
+        # Create parent dir
+        mkdir -p "$(dirname "$dest")"
         
-        # Function to download a file
-        download_file() {
-            local path="$1"
-            local dest=".adbs/internal/$path"
-            if command -v curl &> /dev/null; then
-                curl -fsSL "$base_url/$path" > "$dest" 2>/dev/null || true
-            elif command -v wget &> /dev/null; then
-                wget -qO "$dest" "$base_url/$path" 2>/dev/null || true
+        if command -v curl &> /dev/null; then
+            if ! curl -fsSL "$base_url/$path" > "$dest" 2>/dev/null; then
+                 print_warning "Failed to download $path"
+                 return 1
             fi
-            chmod +x "$dest" 2>/dev/null || true
-        }
-        
-        # Download binaries
-        download_file "bin/workflow-enforcer"
-        
-        # Download root libs
-        download_file "lib/platform_detector.sh"
-        download_file "lib/rules_generator.sh"
-        download_file "lib/ui.sh"
-        download_file "lib/utils.sh"
-        
-        # Download internal libs
-        download_file "lib/internal/work_manager.sh"
-        download_file "lib/internal/task_backend.sh"
-        download_file "lib/internal/migrator.sh"
-        download_file "lib/internal/state_machine.sh"
-        download_file "lib/internal/workflow_generator.sh"
-        
-        # Download task manager libs
-        download_file "lib/task_manager/beads_wrapper.sh"
-        download_file "lib/task_manager/simple.sh"
-        
-        # Create adbs wrapper that uses the downloaded workflow-enforcer
-        cat > .adbs/bin/adbs <<'ADBS_SCRIPT'
+        elif command -v wget &> /dev/null; then
+             if ! wget -qO "$dest" "$base_url/$path" 2>/dev/null; then
+                 print_warning "Failed to download $path"
+                 return 1
+             fi
+        fi
+        chmod +x "$dest" 2>/dev/null || true
+    }
+    
+    print_info "Downloading core scripts..."
+    download_to_install "bin/workflow-enforcer"
+    download_to_install "lib/platform_detector.sh"
+    download_to_install "lib/rules_generator.sh"
+    download_to_install "lib/ui.sh"
+    download_to_install "lib/utils.sh"
+    
+    print_info "Downloading internal modules..."
+    download_to_install "lib/internal/work_manager.sh"
+    download_to_install "lib/internal/task_backend.sh"
+    download_to_install "lib/internal/migrator.sh"
+    download_to_install "lib/internal/state_machine.sh"
+    download_to_install "lib/internal/workflow_generator.sh"
+    download_to_install "lib/internal/memory.sh"
+    download_to_install "lib/task_manager/beads_wrapper.sh"
+    download_to_install "lib/task_manager/simple.sh"
+    
+    # Write Version
+    echo "0.3.0" > "$install_dir/VERSION"
+    
+    # 5. Create ADbS Wrapper
+    local wrapper_path="$bin_link_dir/adbs"
+    if [ "$install_level" == "project" ]; then
+        wrapper_path=".adbs/bin/adbs"
+    fi
+    mkdir -p "$(dirname "$wrapper_path")"
+    
+    cat > "$wrapper_path" <<ADBS_WRAPPER
 #!/bin/bash
 # ADbS - AI Don't Be Stupid
-# Standalone wrapper for remote installations
+# Wrapper script (Level: $install_level)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ADBS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Install Dir
+ADBS_HOME="$install_dir"
 
-# Point to the internal binary
-if [ -f "$ADBS_ROOT/internal/bin/workflow-enforcer" ]; then
-    exec "$ADBS_ROOT/internal/bin/workflow-enforcer" "$@"
+# Export Installation Directory for global config access
+export ADBS_INSTALL_DIR="$install_dir"
+
+# Current Project Root (if any)
+# Traverse up to find .adbs directory
+find_project_root() {
+    local dir="\$(pwd)"
+    while [ "\$dir" != "/" ]; do
+        if [ -d "\$dir/.adbs" ]; then
+            echo "\$dir"
+            return
+        fi
+        dir="\$(dirname "\$dir")"
+    done
+}
+
+PROJECT_ROOT="\$(find_project_root)"
+
+# If running 'new' or 'setup' and no project root, use current dir
+if [ -z "\$PROJECT_ROOT" ] && [[ "\$1" == "new" || "\$1" == "setup" || "\$1" == "init" ]]; then
+    PROJECT_ROOT="\$(pwd)"
+fi
+
+# Execute workflow-enforcer
+if [ -f "\$ADBS_HOME/bin/workflow-enforcer" ]; then
+    # Pass PROJECT_ROOT as env var so enforcer knows where to work
+    export ADBS_PROJECT_ROOT="\$PROJECT_ROOT"
+    exec "\$ADBS_HOME/bin/workflow-enforcer" "\$@"
 else
-    echo "Error: ADbS workflow-enforcer not found"
-    echo "Please reinstall ADbS"
+    echo "Error: ADbS installation not found at \$ADBS_HOME"
     exit 1
 fi
-ADBS_SCRIPT
-        chmod +x .adbs/bin/adbs
-        print_success "Downloaded ADbS scripts"
-    fi
+ADBS_WRAPPER
     
-    # Download task manager silently
-    download_task_manager
+    chmod +x "$wrapper_path"
+    print_success "Installed adbs command to $wrapper_path"
     
-    # Setup PATH automatically
-    local bin_path="$(pwd)/.adbs/bin"
-    local updated_rc=false
-    
-    # Check and update all common shell config files
-    # This is safer than trying to guess the single correct one
-    
-    # 1. Zsh
-    if [ -f "$HOME/.zshrc" ]; then
-        if ! grep -q ".adbs/bin" "$HOME/.zshrc" 2>/dev/null; then
-            echo "" >> "$HOME/.zshrc"
-            echo "# ADbS - AI Don't Be Stupid" >> "$HOME/.zshrc"
-            echo "export PATH=\"\$PATH:$bin_path\"" >> "$HOME/.zshrc"
-            print_success "Added ADbS to PATH in $HOME/.zshrc"
-            updated_rc=true
-        else
-             print_success "ADbS already in PATH in $HOME/.zshrc"
-             updated_rc=true
-        fi
-    fi
-    
-    # 2. Bash
-    if [ -f "$HOME/.bashrc" ]; then
-        if ! grep -q ".adbs/bin" "$HOME/.bashrc" 2>/dev/null; then
-            echo "" >> "$HOME/.bashrc"
-            echo "# ADbS - AI Don't Be Stupid" >> "$HOME/.bashrc"
-            echo "export PATH=\"\$PATH:$bin_path\"" >> "$HOME/.bashrc"
-            print_success "Added ADbS to PATH in $HOME/.bashrc"
-             updated_rc=true
-        else
-            # Only print if we haven't printed about zsh to avoid noise, or if this is the only one
-            if [ "$updated_rc" = false ]; then
-                print_success "ADbS already in PATH in $HOME/.bashrc"
+    # 6. Setup PATH (if needed)
+    # Only if not linking to /usr/local/bin or standard path
+    if [[ ":$PATH:" != *":$bin_link_dir:"* ]]; then
+        # Add to shell RC
+        local bin_path="$bin_link_dir"
+        local updated_rc=false
+        
+        # Update RCs logic (zsh, bash, fish)
+        if [ -f "$HOME/.zshrc" ]; then
+            if ! grep -q "$bin_path" "$HOME/.zshrc"; then
+                echo "" >> "$HOME/.zshrc"
+                echo "export PATH=\"\$PATH:$bin_path\" # ADbS" >> "$HOME/.zshrc"
+                updated_rc=true
             fi
-            updated_rc=true
+        fi
+        if [ -f "$HOME/.bashrc" ]; then
+             if ! grep -q "$bin_path" "$HOME/.bashrc"; then
+                echo "" >> "$HOME/.bashrc"
+                echo "export PATH=\"\$PATH:$bin_path\" # ADbS" >> "$HOME/.bashrc"
+                updated_rc=true
+            fi
+        fi
+        
+        if [ "$updated_rc" = true ]; then
+            print_success "Added $bin_path to PATH"
+        else
+            print_warning "Please ensure $bin_path is in your PATH"
         fi
     fi
     
-    # 3. Fish
-    if [ -f "$HOME/.config/fish/config.fish" ]; then
-        if ! grep -q ".adbs/bin" "$HOME/.config/fish/config.fish" 2>/dev/null; then
-            echo "" >> "$HOME/.config/fish/config.fish"
-            echo "# ADbS - AI Don't Be Stupid" >> "$HOME/.config/fish/config.fish"
-            echo "set -gx PATH \$PATH $bin_path" >> "$HOME/.config/fish/config.fish"
-            print_success "Added ADbS to PATH in $HOME/.config/fish/config.fish"
-            updated_rc=true
-        fi
+    # 7. Generate IDE commands (Global/User level might be different, but for now typical)
+    # If project level, we did it for .cursor etc. 
+    # For user level, we might want to install to user's vscode/cursor settings?
+    # Keeping existing logic for project-level IDE commands if we are in a project
+    if [ -d ".cursor" ] || [ -d ".vscode" ]; then
+        generate_ide_commands "auto"
     fi
-    
-    if [ "$updated_rc" = false ]; then
-        print_warning "Could not detect any common shell config files (.zshrc, .bashrc)"
-        print_info "Add to PATH manually: export PATH=\"\$PATH:$bin_path\""
-    fi
-    
-    # Also add to current session
-    export PATH="$PATH:$bin_path"
     
     echo ""
     print_success "Installation complete!"

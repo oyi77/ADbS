@@ -51,6 +51,8 @@ function Detect-Platform {
     if ($env:TRAE) { $platforms += "trae" }
     if (Test-Path ".gemini") { $platforms += "gemini" }
     if ($env:GEMINI) { $platforms += "gemini" }
+    if (Test-Path ".antigravity") { $platforms += "antigravity" }
+    if ($env:ANTIGRAVITY) { $platforms += "antigravity" }
     if (Test-Path ".vscode") { $platforms += "vscode" }
     if ($env:VSCODE -or $env:CODE) { $platforms += "vscode" }
     
@@ -93,6 +95,7 @@ function Generate-IDECommands {
     $commandsDir = switch ($Platform) {
         "cursor" { ".cursor\commands" }
         "gemini" { ".gemini\commands" }
+        "antigravity" { ".antigravity\commands" }
         "vscode" { ".vscode\commands" }
         default { return }
     }
