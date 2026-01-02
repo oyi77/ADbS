@@ -135,9 +135,9 @@ get_rules_dir() {
 
 # Get rules directories for all detected platforms
 get_all_rules_dirs() {
-    while IFS= read -r platform; do
+    detect_all_platforms | while IFS= read -r platform; do
         get_rules_dir "$platform"
-    done < <(detect_all_platforms)
+    done
 }
 
 get_rules_file() {

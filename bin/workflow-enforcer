@@ -19,7 +19,14 @@ RULES_GENERATOR="$PROJECT_ROOT/lib/rules_generator.sh"
 mkdir -p "$PROJECT_ROOT/lib/internal"
 
 # Ensure scripts are executable
-chmod +x "$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" 2>/dev/null || true
+if ! chmod +x "$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" 2>/dev/null; then
+    # chmod failed - likely on Windows or permission issue
+    # Check if scripts are already executable or if we're on Windows
+    if [ ! -x "$WORK_MANAGER" ] && [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
+        echo "Warning: Could not make scripts executable. You may need to run:"
+        echo "  chmod +x lib/**/*.sh bin/*"
+    fi
+fi
 
 # Check if migration is needed on first run
 check_migration() {
@@ -86,8 +93,8 @@ case "${1:-}" in
         check_migration
         shift
         
-        # If no subcommand, assume create
-        if [ $# -eq 0 ] || [[ "$1" != -* ]] && [ "$1" != "list" ] && [ "$1" != "update" ] && [ "$1" != "show" ] && [ "$1" != "delete" ]; then
+        # If no subcommand or first arg is description, assume create
+        if [ $# -eq 0 ] || ! is_task_subcommand "${1:-}"; then
             "$TASK_BACKEND" create "$@"
         else
             "$TASK_BACKEND" "$@"
@@ -321,7 +328,7 @@ case "${1:-}" in
             cd "$PROJECT_ROOT" && git pull && echo "✓ Updated successfully"
         else
             echo "Error: Cannot auto-update"
-            echo "Please reinstall using: curl -sSL https://adbs.dev/install | bash"
+            echo "Please reinstall using: curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/install.sh | bash"
             exit 1
         fi
         ;;

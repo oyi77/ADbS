@@ -81,27 +81,39 @@ generate_platform_rules() {
     
     # Generate workflow-specific rules
     if check_sdd_active; then
-        generate_rules_file "$rules_dir" "sdd.mdc" "$TEMPLATES_DIR/sdd.mdc.template" && generated_files+=("sdd.mdc")
-        generate_rules_file "$rules_dir" "workflow.mdc" "$TEMPLATES_DIR/workflow.mdc.template" && generated_files+=("workflow.mdc")
+        if generate_rules_file "$rules_dir" "sdd.mdc" "$TEMPLATES_DIR/sdd.mdc.template"; then
+            generated_files+=("sdd.mdc")
+        fi
+        if generate_rules_file "$rules_dir" "workflow.mdc" "$TEMPLATES_DIR/workflow.mdc.template"; then
+            generated_files+=("workflow.mdc")
+        fi
     fi
     
     # Generate beads rules if available
     if check_beads_available; then
-        generate_rules_file "$rules_dir" "beads.mdc" "$TEMPLATES_DIR/beads.mdc.template" && generated_files+=("beads.mdc")
+        if generate_rules_file "$rules_dir" "beads.mdc" "$TEMPLATES_DIR/beads.mdc.template"; then
+            generated_files+=("beads.mdc")
+        fi
     fi
     
     # Generate task manager rules if active
     if check_task_manager_active; then
-        generate_rules_file "$rules_dir" "tasks.mdc" "$TEMPLATES_DIR/beads.mdc.template" && generated_files+=("tasks.mdc")
+        if generate_rules_file "$rules_dir" "tasks.mdc" "$TEMPLATES_DIR/beads.mdc.template"; then
+            generated_files+=("tasks.mdc")
+        fi
     fi
     
     # Generate OpenSpec rules if active
     if check_openspec_active; then
-        generate_rules_file "$rules_dir" "openspec.mdc" "$TEMPLATES_DIR/openspec.mdc.template" && generated_files+=("openspec.mdc")
+        if generate_rules_file "$rules_dir" "openspec.mdc" "$TEMPLATES_DIR/openspec.mdc.template"; then
+            generated_files+=("openspec.mdc")
+        fi
     fi
     
     # Always generate ADbS workflow rules (new abstracted interface)
-    generate_rules_file "$rules_dir" "adbs-workflow.mdc" "$TEMPLATES_DIR/adbs-workflow.mdc.template" && generated_files+=("adbs-workflow.mdc")
+    if generate_rules_file "$rules_dir" "adbs-workflow.mdc" "$TEMPLATES_DIR/adbs-workflow.mdc.template"; then
+        generated_files+=("adbs-workflow.mdc")
+    fi
     
     # Generate platform-specific rules
     local platform_template="$TEMPLATES_DIR/platform-${platform}.mdc.template"
