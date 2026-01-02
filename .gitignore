@@ -15,6 +15,7 @@
 .beads/
 openspec/
 AGENTS.md                 # Generated from templates
+test-project/             # Test directory for validation
 
 # Generated rule files (created by adbs setup)
 .rules                    # Zed rules
