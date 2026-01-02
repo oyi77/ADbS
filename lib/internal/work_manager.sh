@@ -12,6 +12,12 @@ OPENSPEC_ENGINE="$PROJECT_ROOT/lib/internal/openspec_engine.sh"
 VALIDATOR="$PROJECT_ROOT/lib/internal/validator.sh"
 WORKFLOW_GENERATOR="$PROJECT_ROOT/lib/internal/workflow_generator.sh"
 STATE_MACHINE="$PROJECT_ROOT/lib/internal/state_machine.sh"
+MEMORY_LIB="$SCRIPT_DIR/memory.sh"
+
+# Source memory if available
+if [ -f "$MEMORY_LIB" ]; then
+    source "$MEMORY_LIB"
+fi
 
 # Work directory (new structure)
 WORK_DIR="${ADBS_DIR:-.adbs}/work"
@@ -33,12 +39,35 @@ detect_workflow() {
 # Create new work item
 create_work() {
     local name="$1"
-    local ai_generate="${2:-false}"
+    local ai_generate="${2:-}"
     
     if [ -z "$name" ]; then
         echo "Error: Work name required"
         echo "Usage: adbs new <name> [--ai-generate]"
         exit 1
+    fi
+
+    # Check preferences if mode not explicitly set
+    if [ -z "$ai_generate" ] && type get_preference >/dev/null 2>&1; then
+        local pref_mode=$(get_preference "default_workflow_mode")
+        if [ "$pref_mode" = "ai" ]; then
+            ai_generate="--ai-generate"
+            echo "Tip: Auto-enabling AI workflow based on your preference."
+        fi
+    fi
+    
+    # Default to false if still empty
+    if [ -z "$ai_generate" ]; then
+        ai_generate="false"
+    fi
+    
+    # Learn preference
+    if type remember_preference >/dev/null 2>&1; then
+        if [ "$ai_generate" = "true" ] || [ "$ai_generate" = "--ai-generate" ]; then
+            remember_preference "default_workflow_mode" "ai"
+        else
+            remember_preference "default_workflow_mode" "manual"
+        fi
     fi
     
     # Ensure work directory exists
