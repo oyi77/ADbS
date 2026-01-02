@@ -39,6 +39,17 @@ if (-not $BashExe) {
 # Convert Windows path to Unix path for bash
 $UnixScriptPath = $BashScript -replace '\\', '/' -replace '^([A-Z]):', { "/$(($_.Value[0]).ToString().ToLower())" }
 
+# Special Handling for Dashboard on Windows (if Bash is missing or just preferred?)
+if ($args[0] -eq "dashboard" -and (Test-Path "lib\internal\dashboard.ps1")) {
+    & "lib\internal\dashboard.ps1"
+    exit $LASTEXITCODE
+}
+if ($args[0] -eq "dashboard" -and (Test-Path "$ScriptDir\..\internal\dashboard.ps1")) {
+    # Installed location structure: .adbs/bin/adbs.ps1 -> .adbs/internal/dashboard.ps1
+    & "$ScriptDir\..\internal\dashboard.ps1"
+    exit $LASTEXITCODE
+}
+
 # Forward all arguments to bash script
 & $BashExe -c "$UnixScriptPath $args"
 exit $LASTEXITCODE
