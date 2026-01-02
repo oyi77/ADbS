@@ -461,23 +461,45 @@ main() {
         # Remote installation - create standalone adbs command
         print_info "Downloading ADbS scripts..."
         
-        # Download workflow-enforcer to .adbs/internal
+        # Define base URL
         local base_url="https://raw.githubusercontent.com/oyi77/ADbS/main"
-        mkdir -p .adbs/internal/lib
         
-        if command -v curl &> /dev/null; then
-            curl -fsSL "$base_url/bin/workflow-enforcer" > .adbs/internal/workflow-enforcer 2>/dev/null || true
-            # Download essential lib files
-            curl -fsSL "$base_url/lib/platform_detector.sh" > .adbs/internal/lib/platform_detector.sh 2>/dev/null || true
-            curl -fsSL "$base_url/lib/rules_generator.sh" > .adbs/internal/lib/rules_generator.sh 2>/dev/null || true
-        elif command -v wget &> /dev/null; then
-            wget -qO .adbs/internal/workflow-enforcer "$base_url/bin/workflow-enforcer" 2>/dev/null || true
-            wget -qO .adbs/internal/lib/platform_detector.sh "$base_url/lib/platform_detector.sh" 2>/dev/null || true
-            wget -qO .adbs/internal/lib/rules_generator.sh "$base_url/lib/rules_generator.sh" 2>/dev/null || true
-        fi
+        # Create directory structure to mirror repo
+        mkdir -p .adbs/internal/bin
+        mkdir -p .adbs/internal/lib/internal
+        mkdir -p .adbs/internal/lib/task_manager
         
-        chmod +x .adbs/internal/workflow-enforcer 2>/dev/null || true
-        chmod +x .adbs/internal/lib/*.sh 2>/dev/null || true
+        # Function to download a file
+        download_file() {
+            local path="$1"
+            local dest=".adbs/internal/$path"
+            if command -v curl &> /dev/null; then
+                curl -fsSL "$base_url/$path" > "$dest" 2>/dev/null || true
+            elif command -v wget &> /dev/null; then
+                wget -qO "$dest" "$base_url/$path" 2>/dev/null || true
+            fi
+            chmod +x "$dest" 2>/dev/null || true
+        }
+        
+        # Download binaries
+        download_file "bin/workflow-enforcer"
+        
+        # Download root libs
+        download_file "lib/platform_detector.sh"
+        download_file "lib/rules_generator.sh"
+        download_file "lib/ui.sh"
+        download_file "lib/utils.sh"
+        
+        # Download internal libs
+        download_file "lib/internal/work_manager.sh"
+        download_file "lib/internal/task_backend.sh"
+        download_file "lib/internal/migrator.sh"
+        download_file "lib/internal/state_machine.sh"
+        download_file "lib/internal/workflow_generator.sh"
+        
+        # Download task manager libs
+        download_file "lib/task_manager/beads_wrapper.sh"
+        download_file "lib/task_manager/simple.sh"
         
         # Create adbs wrapper that uses the downloaded workflow-enforcer
         cat > .adbs/bin/adbs <<'ADBS_SCRIPT'
@@ -488,9 +510,9 @@ main() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ADBS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Use the downloaded workflow-enforcer
-if [ -f "$ADBS_ROOT/internal/workflow-enforcer" ]; then
-    exec "$ADBS_ROOT/internal/workflow-enforcer" "$@"
+# Point to the internal binary
+if [ -f "$ADBS_ROOT/internal/bin/workflow-enforcer" ]; then
+    exec "$ADBS_ROOT/internal/bin/workflow-enforcer" "$@"
 else
     echo "Error: ADbS workflow-enforcer not found"
     echo "Please reinstall ADbS"
