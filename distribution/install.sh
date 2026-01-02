@@ -506,41 +506,55 @@ ADBS_SCRIPT
     
     # Setup PATH automatically
     local bin_path="$(pwd)/.adbs/bin"
-    local shell_rc=""
+    local updated_rc=false
     
-    # Detect user's actual shell (not the current script shell)
-    local user_shell="$(basename "$SHELL")"
+    # Check and update all common shell config files
+    # This is safer than trying to guess the single correct one
     
-    case "$user_shell" in
-        bash)
-            shell_rc="$HOME/.bashrc"
-            ;;
-        zsh)
-            shell_rc="$HOME/.zshrc"
-            ;;
-        fish)
-            shell_rc="$HOME/.config/fish/config.fish"
-            ;;
-        *)
-            # Try to detect from common files
-            if [ -f "$HOME/.zshrc" ]; then
-                shell_rc="$HOME/.zshrc"
-            elif [ -f "$HOME/.bashrc" ]; then
-                shell_rc="$HOME/.bashrc"
-            fi
-            ;;
-    esac
-    
-    # Add to PATH if not already there
-    if [ -n "$shell_rc" ] && [ -f "$shell_rc" ]; then
-        if ! grep -q ".adbs/bin" "$shell_rc" 2>/dev/null; then
-            echo "" >> "$shell_rc"
-            echo "# ADbS - AI Don't Be Stupid" >> "$shell_rc"
-            echo "export PATH=\"\$PATH:$bin_path\"" >> "$shell_rc"
-            print_success "Added ADbS to PATH in $shell_rc"
+    # 1. Zsh
+    if [ -f "$HOME/.zshrc" ]; then
+        if ! grep -q ".adbs/bin" "$HOME/.zshrc" 2>/dev/null; then
+            echo "" >> "$HOME/.zshrc"
+            echo "# ADbS - AI Don't Be Stupid" >> "$HOME/.zshrc"
+            echo "export PATH=\"\$PATH:$bin_path\"" >> "$HOME/.zshrc"
+            print_success "Added ADbS to PATH in $HOME/.zshrc"
+            updated_rc=true
+        else
+             print_success "ADbS already in PATH in $HOME/.zshrc"
+             updated_rc=true
         fi
-    else
-        print_warning "Could not detect shell config file"
+    fi
+    
+    # 2. Bash
+    if [ -f "$HOME/.bashrc" ]; then
+        if ! grep -q ".adbs/bin" "$HOME/.bashrc" 2>/dev/null; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# ADbS - AI Don't Be Stupid" >> "$HOME/.bashrc"
+            echo "export PATH=\"\$PATH:$bin_path\"" >> "$HOME/.bashrc"
+            print_success "Added ADbS to PATH in $HOME/.bashrc"
+             updated_rc=true
+        else
+            # Only print if we haven't printed about zsh to avoid noise, or if this is the only one
+            if [ "$updated_rc" = false ]; then
+                print_success "ADbS already in PATH in $HOME/.bashrc"
+            fi
+            updated_rc=true
+        fi
+    fi
+    
+    # 3. Fish
+    if [ -f "$HOME/.config/fish/config.fish" ]; then
+        if ! grep -q ".adbs/bin" "$HOME/.config/fish/config.fish" 2>/dev/null; then
+            echo "" >> "$HOME/.config/fish/config.fish"
+            echo "# ADbS - AI Don't Be Stupid" >> "$HOME/.config/fish/config.fish"
+            echo "set -gx PATH \$PATH $bin_path" >> "$HOME/.config/fish/config.fish"
+            print_success "Added ADbS to PATH in $HOME/.config/fish/config.fish"
+            updated_rc=true
+        fi
+    fi
+    
+    if [ "$updated_rc" = false ]; then
+        print_warning "Could not detect any common shell config files (.zshrc, .bashrc)"
         print_info "Add to PATH manually: export PATH=\"\$PATH:$bin_path\""
     fi
     
