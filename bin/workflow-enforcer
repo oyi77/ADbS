@@ -335,7 +335,7 @@ case "${1:-}" in
     
     help|--help|-h)
         cat <<EOF
-ADbS - AI Development Assistant
+ADbS - AI Don't Be Stupid
 
 Keep your AI focused. Stay organized. Ship faster.
 
