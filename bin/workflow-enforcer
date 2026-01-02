@@ -56,6 +56,28 @@ check_migration() {
     fi
 }
 
+# Helper: Find work directory by name (exact or date-prefixed)
+find_work_dir() {
+    local name="$1"
+    local work_dir=".adbs/work"
+    
+    # 1. Exact match
+    if [ -d "$work_dir/$name" ]; then
+        echo "$work_dir/$name"
+        return 0
+    fi
+    
+    # 2. Date-prefixed match
+    for path in "$work_dir"/*-"$name"; do
+        if [ -d "$path" ]; then
+            echo "$path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Main command handler
 case "${1:-}" in
     new|start)
@@ -215,13 +237,7 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=""
-        for path in .adbs/work/*-"$work_name"; do
-            if [ -d "$path" ]; then
-                work_dir="$path"
-                break
-            fi
-        done
+        work_dir=$(find_work_dir "$work_name")
         
         if [ -z "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
@@ -244,13 +260,7 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=""
-        for path in .adbs/work/*-"$work_name"; do
-            if [ -d "$path" ]; then
-                work_dir="$path"
-                break
-            fi
-        done
+        work_dir=$(find_work_dir "$work_name")
         
         if [ -z "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
@@ -273,13 +283,7 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=""
-        for path in .adbs/work/*-"$work_name"; do
-            if [ -d "$path" ]; then
-                work_dir="$path"
-                break
-            fi
-        done
+        work_dir=$(find_work_dir "$work_name")
         
         if [ -z "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
@@ -302,13 +306,7 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=""
-        for path in .adbs/work/*-"$work_name"; do
-            if [ -d "$path" ]; then
-                work_dir="$path"
-                break
-            fi
-        done
+        work_dir=$(find_work_dir "$work_name")
         
         if [ -z "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
@@ -334,13 +332,7 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=""
-        for path in .adbs/work/*-"$work_name"; do
-            if [ -d "$path" ]; then
-                work_dir="$path"
-                break
-            fi
-        done
+        work_dir=$(find_work_dir "$work_name")
         
         if [ -z "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"

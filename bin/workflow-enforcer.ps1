@@ -43,7 +43,26 @@ if (-not $BashExe) {
 }
 
 # Convert Windows path to Unix path for bash
-$UnixScriptPath = $BashScript -replace '\\', '/' -replace '^([A-Z]):', { "/$(($_.Value[0]).ToString().ToLower())" }
+# Convert Windows path to Unix path for bash
+$UnixScriptPath = $BashScript -replace '\\', '/'
+if ($UnixScriptPath -match '^([A-Z]):') {
+    $Drive = $Matches[1].ToLower()
+    $UnixScriptPath = $UnixScriptPath -replace '^([A-Z]):', "/$Drive"
+}
+
+# If using WSL, prepent /mnt/
+if ($BashExe -eq "bash" -or $BashExe -like "*System32*") {
+    # Check if we are really in WSL
+    $IsWsl = $false
+    try {
+        $Ver = & $BashExe -c "uname -r"
+        if ($Ver -like "*microsoft*") { $IsWsl = $true }
+    } catch {}
+    
+    if ($IsWsl -and $UnixScriptPath -match '^/([a-z])') {
+         $UnixScriptPath = "/mnt$UnixScriptPath"
+    }
+}
 
 # Properly escape and forward all arguments
 $EscapedArgs = $args | ForEach-Object {

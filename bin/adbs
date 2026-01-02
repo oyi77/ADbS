@@ -2,5 +2,11 @@
 # ADbS - Short alias for workflow-enforcer
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/workflow-enforcer" "$@"
+TARGET="$SCRIPT_DIR/workflow-enforcer"
+if [ ! -f "$TARGET" ]; then
+    echo "Error: ADbS internal component not found: $TARGET" >&2
+    echo "Please reinstall ADbS." >&2
+    exit 1
+fi
+exec "$TARGET" "$@"
 

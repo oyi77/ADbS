@@ -36,6 +36,27 @@ detect_workflow() {
     echo "openspec"
 }
 
+# Helper: Find work directory by name (exact or date-prefixed)
+find_work_dir() {
+    local name="$1"
+    
+    # 1. Exact match
+    if [ -d "$WORK_DIR/$name" ]; then
+        echo "$WORK_DIR/$name"
+        return 0
+    fi
+    
+    # 2. Date-prefixed match
+    for path in "$WORK_DIR"/*-"$name"; do
+        if [ -d "$path" ]; then
+            echo "$path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Create new work item
 create_work() {
     local name="$1"
@@ -71,7 +92,11 @@ create_work() {
     fi
     
     # Ensure work directory exists
-    mkdir -p "$WORK_DIR"
+    mkdir -p "$WORK_DIR" || {
+        echo "Error: Failed to create work directory at $WORK_DIR" >&2
+        echo "Check your permissions." >&2
+        exit 1
+    }
     
     # Detect workflow (currently always OpenSpec)
     local workflow=$(detect_workflow)
@@ -206,16 +231,10 @@ show_work() {
         exit 1
     fi
     
-    # Find work by name (fuzzy match)
-    local work_path=""
-    for path in "$WORK_DIR"/*-"$name"; do
-        if [ -d "$path" ]; then
-            work_path="$path"
-            break
-        fi
-    done
+    # Find work by name
+    local work_path=$(find_work_dir "$name")
     
-    if [ -z "$work_path" ] || [ ! -d "$work_path" ]; then
+    if [ -z "$work_path" ]; then
         echo "Error: Work '$name' not found"
         echo "Use 'adbs list' to see active work"
         exit 1
@@ -240,30 +259,36 @@ complete_work() {
     fi
     
     # Find work by name
-    local work_path=""
-    for path in "$WORK_DIR"/*-"$name"; do
-        if [ -d "$path" ]; then
-            work_path="$path"
-            break
-        fi
-    done
+    local work_path=$(find_work_dir "$name")
     
-    if [ -z "$work_path" ] || [ ! -d "$work_path" ]; then
+    if [ -z "$work_path" ]; then
         echo "Error: Work '$name' not found"
         echo "Use 'adbs list' to see active work"
         exit 1
     fi
     
     # Ensure archive directory exists
-    mkdir -p "$ARCHIVE_DIR"
+    mkdir -p "$ARCHIVE_DIR" || {
+        echo "Error: Failed to create archive directory at $ARCHIVE_DIR" >&2
+        exit 1
+    }
     
     # Move to archive
     local work_id=$(basename "$work_path")
-    mv "$work_path" "$ARCHIVE_DIR/"
+    local archive_path="$ARCHIVE_DIR/$work_id"
+    
+    # Handle collision (if work with same name completed today)
+    if [ -d "$archive_path" ]; then
+        # Append timestamp to make unique
+        local timestamp=$(date +%H%M%S)
+        archive_path="${archive_path}_${timestamp}"
+    fi
+    
+    mv "$work_path" "$archive_path"
     
     echo "✓ Completed: $name"
     echo ""
-    echo "Archived to: $ARCHIVE_DIR/$work_id"
+    echo "Archived to: $archive_path"
 }
 
 # Show status of all work
