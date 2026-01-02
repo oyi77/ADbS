@@ -318,6 +318,7 @@ main() {
     
     # Initialize workflow
     if [ ! -f ".workflow-enforcer/current-stage" ]; then
+        mkdir -p ".workflow-enforcer"
         echo "explore" > ".workflow-enforcer/current-stage"
         print_success "Initialized workflow (starting at 'explore' stage)"
     fi
