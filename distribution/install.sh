@@ -461,6 +461,11 @@ main() {
         # Remote installation - create standalone adbs command
         print_info "Downloading ADbS scripts..."
         
+        # Cleanup old internal files to prevent conflicts
+        rm -f .adbs/internal/workflow-enforcer
+        rm -rf .adbs/internal/lib
+        rm -rf .adbs/internal/bin
+        
         # Define base URL
         local base_url="https://raw.githubusercontent.com/oyi77/ADbS/main"
         
