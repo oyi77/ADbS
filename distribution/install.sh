@@ -199,43 +199,160 @@ EOF
     print_success "Created rules file: $full_path"
 }
 
-# Download beads binary (optional)
-download_beads() {
-    local os="$1"
-    local arch="$2"
-    local beads_dir="bin/beads"
+# Download task manager (internal - silent)
+download_task_manager() {
+    # Silently install task manager in .adbs/internal
+    mkdir -p ".adbs/internal/bin"
     
-    print_info "Checking for Beads binary availability..."
-    
-    # Beads release URL (adjust based on actual releases)
-    local beads_version="v0.30.0"
-    local beads_url="https://github.com/steveyegge/beads/releases/download/${beads_version}/bd-${os}-${arch}"
-    
-    mkdir -p "$beads_dir"
-    
-    local download_cmd=$(get_download_cmd)
-    if [ -z "$download_cmd" ]; then
-        print_warning "Cannot download Beads (no curl/wget)"
-        return 1
+    # Use Beads installation script but redirect to .adbs/internal
+    if command -v curl &> /dev/null; then
+        export BEADS_INSTALL_DIR=".adbs/internal"
+        curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash > /dev/null 2>&1 || true
     fi
     
-    print_info "Attempting to download Beads binary..."
-    if $download_cmd "$beads_url" > "$beads_dir/bd" 2>/dev/null; then
-        chmod +x "$beads_dir/bd"
-        if "$beads_dir/bd" --version &> /dev/null; then
-            print_success "Beads binary downloaded and verified"
-            return 0
-        else
-            print_warning "Downloaded file is not a valid Beads binary"
-            rm -f "$beads_dir/bd"
-            return 1
-        fi
-    else
-        print_warning "Beads binary not available for $os/$arch (will use alternative task manager)"
-        rm -f "$beads_dir/bd"
-        return 1
+    # Create symlink if beads was installed
+    if [ -f ".adbs/internal/bin/bd" ]; then
+        chmod +x ".adbs/internal/bin/bd"
     fi
+    
+    return 0
 }
+
+# Generate IDE commands
+generate_ide_commands() {
+    local platform="$1"
+    local commands_dir=""
+    
+    case "$platform" in
+        cursor)
+            commands_dir=".cursor/commands"
+            ;;
+        gemini)
+            commands_dir=".gemini/commands"
+            ;;
+        vscode)
+            commands_dir=".vscode/commands"
+            ;;
+        *)
+            return 0  # Skip for unknown platforms
+            ;;
+    esac
+    
+    mkdir -p "$commands_dir"
+    
+    # Try to copy from config/commands if available (local install)
+    if [ -d "config/commands" ]; then
+        cp config/commands/*.md "$commands_dir/" 2>/dev/null || true
+        print_success "Generated IDE commands in $commands_dir/"
+        return 0
+    fi
+    
+    # Otherwise create commands inline (remote install)
+    # Command: ADbS New
+    cat > "$commands_dir/adbs-new.md" <<'EOF'
+---
+name: "ADbS: New Work"
+description: "Start new feature or fix with ADbS"
+---
+
+# ADbS: New Work
+
+Start a new work item with ADbS (AI Don't Be Stupid).
+
+**Simple workflow:**
+```bash
+adbs new "feature-name"
+```
+
+**AI-powered workflow:**
+```bash
+adbs new "feature-name" --ai-generate"
+```
+EOF
+
+    # Command: ADbS Status
+    cat > "$commands_dir/adbs-status.md" <<'EOF'
+---
+name: "ADbS: Status"
+description: "Show current ADbS work status"
+---
+
+# ADbS: Status
+
+Show the current status of all active work items.
+
+```bash
+adbs status
+```
+EOF
+
+    # Command: ADbS Done
+    cat > "$commands_dir/adbs-done.md" <<'EOF'
+---
+name: "ADbS: Done"
+description: "Mark work as complete and archive it"
+---
+
+# ADbS: Done
+
+Mark a work item as complete and move it to the archive.
+
+```bash
+adbs done "feature-name"
+```
+EOF
+
+    # Command: ADbS Help
+    cat > "$commands_dir/adbs-help.md" <<'EOF'
+---
+name: "ADbS: Help"
+description: "Show ADbS help and available commands"
+---
+
+# ADbS: Help
+
+Get help with ADbS (AI Don't Be Stupid) commands.
+
+```bash
+adbs help
+```
+EOF
+
+    # Command: ADbS Workflow
+    cat > "$commands_dir/adbs-workflow.md" <<'EOF'
+---
+name: "ADbS: Workflow"
+description: "Show detailed workflow state"
+---
+
+# ADbS: Workflow
+
+Show the detailed workflow state for a work item.
+
+```bash
+adbs workflow "feature-name"
+```
+EOF
+
+    # Command: ADbS Todo
+    cat > "$commands_dir/adbs-todo.md" <<'EOF'
+---
+name: "ADbS: Add Task"
+description: "Add a new task or reminder"
+---
+
+# ADbS: Add Task
+
+Add a new task or reminder to your current work.
+
+```bash
+adbs todo "task description"
+```
+EOF
+
+    print_success "Generated IDE commands in $commands_dir/"
+}
+
 
 # Main installation
 main() {
@@ -312,53 +429,69 @@ main() {
         fi
     fi
     
-    # Create ADbS directory structure
-    mkdir -p ".adbs/work" ".adbs/archive" ".adbs/internal"
+    # Generate IDE commands
+    generate_ide_commands "$platform"
+    
+    # Create ADbS directory structure (everything in .adbs)
+    mkdir -p ".adbs/work" ".adbs/archive" ".adbs/internal" ".adbs/bin" ".adbs/config"
     print_success "Created ADbS directory structure: .adbs/"
     
-    # Initialize workflow
-    if [ ! -f ".workflow-enforcer/current-stage" ]; then
-        mkdir -p ".workflow-enforcer"
-        echo "explore" > ".workflow-enforcer/current-stage"
+    # Initialize workflow state in .adbs
+    if [ ! -f ".adbs/config/current-stage" ]; then
+        echo "explore" > ".adbs/config/current-stage"
         print_success "Initialized workflow (starting at 'explore' stage)"
     fi
     
     # Make scripts executable
-    print_info "Making scripts executable..."
+    print_info "Setting up ADbS command..."
     find lib -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
     find bin -type f -exec chmod +x {} \; 2>/dev/null || true
     chmod +x install.sh 2>/dev/null || true
-    print_success "Scripts are executable"
     
-    # Try to download Beads (optional)
-    if [ "$os" != "unknown" ] && [ "$arch" != "unknown" ]; then
-        download_beads "$os" "$arch" || true
-    else
-        print_warning "Cannot determine OS/arch for Beads download"
+    # Copy adbs command to .adbs/bin for easy access
+    if [ -f "bin/adbs" ]; then
+        cp bin/adbs .adbs/bin/adbs
+        chmod +x .adbs/bin/adbs
     fi
     
-    # Setup PATH (optional - user can add manually)
-    local bin_path="$(pwd)/bin"
-    if [[ ":$PATH:" != *":$bin_path:"* ]]; then
-        print_info "To use 'adbs' command, add to PATH:"
-        echo "  export PATH=\"\$PATH:$bin_path\""
-        echo ""
-        print_info "Or use directly:"
-        echo "  $bin_path/adbs --help"
-        echo ""
-        print_info "Note: 'adbs' is a shorter alias for 'workflow-enforcer'"
+    # Download task manager silently
+    download_task_manager
+    
+    # Setup PATH automatically
+    local bin_path="$(pwd)/.adbs/bin"
+    local shell_rc=""
+    
+    # Detect shell config file
+    if [ -n "$BASH_VERSION" ]; then
+        shell_rc="$HOME/.bashrc"
+    elif [ -n "$ZSH_VERSION" ]; then
+        shell_rc="$HOME/.zshrc"
     fi
+    
+    # Add to PATH if not already there
+    if [ -n "$shell_rc" ] && [ -f "$shell_rc" ]; then
+        if ! grep -q ".adbs/bin" "$shell_rc" 2>/dev/null; then
+            echo "" >> "$shell_rc"
+            echo "# ADbS - AI Don't Be Stupid" >> "$shell_rc"
+            echo "export PATH=\"\$PATH:$bin_path\"" >> "$shell_rc"
+            print_success "Added ADbS to PATH in $shell_rc"
+        fi
+    fi
+    
+    # Also make it available in current session
+    export PATH="$PATH:$bin_path"
     
     echo ""
     print_success "Installation complete!"
     echo ""
-    print_info "Next steps:"
-    echo "  1. Review rules files in: $rules_dir/rules/"
-    echo "  2. Run: ./bin/adbs status"
-    echo "  3. Start with explore stage: Create .sdd/plans/explore.md"
+    print_info "ADbS (AI Don't Be Stupid) is now installed!"
     echo ""
-    print_info "For help: ./bin/adbs help"
-    print_info "Note: 'adbs' is a shorter alias for 'workflow-enforcer'"
+    print_info "Next steps:"
+    echo "  1. Reload your shell: source ~/.bashrc (or ~/.zshrc)"
+    echo "  2. Run: adbs status"
+    echo "  3. Start with explore stage: Create .adbs/plans/explore.md"
+    echo ""
+    print_info "For help: adbs help"
 }
 
 # Run main function
