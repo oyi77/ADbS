@@ -25,14 +25,8 @@ fi
 
 # Detect project complexity and choose workflow
 detect_workflow() {
-    # Simple heuristic: if project has many files/complex structure, use SDD
-    # Otherwise, use OpenSpec (lightweight)
-    
-    local file_count=$(find . -type f 2>/dev/null | wc -l)
-    local dir_depth=$(find . -type d 2>/dev/null | awk -F/ '{print NF}' | sort -n | tail -1)
-    
-    # For now, always use OpenSpec (it's simpler and covers 90% of cases)
-    # Future: Add SDD for very complex projects
+    # Always use OpenSpec (simple and covers 90% of cases)
+    # Future enhancement: Add SDD detection based on .sdd directory presence
     echo "openspec"
 }
 
@@ -71,7 +65,12 @@ create_work() {
     if [ "$ai_generate" = "true" ] || [ "$ai_generate" = "--ai-generate" ]; then
         # Use workflow generator
         if [ -f "$WORKFLOW_GENERATOR" ]; then
-            generate_workflow "$name" "$work_path"
+            if ! generate_workflow "$name" "$work_path"; then
+                echo "Error: Workflow generation failed"
+                # Clean up incomplete work directory
+                rm -rf "$work_path"
+                exit 1
+            fi
             
             echo ""
             echo "Created work: $name"
@@ -85,6 +84,7 @@ create_work() {
             echo "  adbs workflow $name          # View workflow status"
             echo "  adbs progress $name          # Check if ready to advance"
             echo "  adbs advance $name           # Move to next state"
+            return 0
         else
             echo "Warning: Workflow generator not found, using simple mode"
             ai_generate="false"
@@ -122,14 +122,7 @@ EOF
         echo "  3. Mark done: adbs done \"$name\""
     fi
 }
-    
-    echo "✓ Started new work: $name"
-    echo ""
-    echo "Next steps:"
-    echo "  1. Edit the work plan: $work_path/proposal.md"
-    echo "  2. Check status: adbs status"
-    echo "  3. Mark done: adbs done \"$name\""
-}
+
 
 # List all active work
 list_work() {
@@ -250,16 +243,20 @@ show_status() {
     echo "==========="
     echo ""
     
-    # Count active work
+    # Count active work using shell globbing (more efficient than find)
     local active_count=0
     if [ -d "$WORK_DIR" ]; then
-        active_count=$(find "$WORK_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+        for dir in "$WORK_DIR"/*; do
+            [ -d "$dir" ] && active_count=$((active_count + 1))
+        done
     fi
     
-    # Count archived work
+    # Count archived work using shell globbing
     local archive_count=0
     if [ -d "$ARCHIVE_DIR" ]; then
-        archive_count=$(find "$ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+        for dir in "$ARCHIVE_DIR"/*; do
+            [ -d "$dir" ] && archive_count=$((archive_count + 1))
+        done
     fi
     
     echo "Active work: $active_count"

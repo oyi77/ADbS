@@ -18,8 +18,16 @@ get_current_state() {
         return
     fi
     
-    # Extract current_state from JSON (simple grep/sed approach)
-    grep '"current_state"' "$state_file" | sed 's/.*"current_state": "\([^"]*\)".*/\1/'
+    # Try jq first (most reliable)
+    if command -v jq >/dev/null 2>&1; then
+        jq -r '.current_state // "planning"' "$state_file" 2>/dev/null || echo "planning"
+    # Try python as fallback
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 -c "import json,sys; print(json.load(open('$state_file')).get('current_state', 'planning'))" 2>/dev/null || echo "planning"
+    # Fallback to grep/sed (less reliable but works without dependencies)
+    else
+        grep '"current_state"' "$state_file" 2>/dev/null | sed 's/.*"current_state": "\([^"]*\)".*/\1/' || echo "planning"
+    fi
 }
 
 # Get state status
@@ -33,8 +41,16 @@ get_state_status() {
         return
     fi
     
-    # Extract status for specific state
-    sed -n "/$state/,/}/p" "$state_file" | grep '"status"' | head -1 | sed 's/.*"status": "\([^"]*\)".*/\1/'
+    # Try jq first
+    if command -v jq >/dev/null 2>&1; then
+        jq -r ".states.\"$state\".status // \"pending\"" "$state_file" 2>/dev/null || echo "pending"
+    # Try python as fallback
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 -c "import json,sys; print(json.load(open('$state_file')).get('states', {}).get('$state', {}).get('status', 'pending'))" 2>/dev/null || echo "pending"
+    # Fallback to sed (less reliable)
+    else
+        sed -n "/$state/,/}/p" "$state_file" 2>/dev/null | grep '"status"' | head -1 | sed 's/.*"status": "\([^"]*\)".*/\1/' || echo "pending"
+    fi
 }
 
 # Validate state can transition
@@ -95,11 +111,13 @@ transition_state() {
         return 1
     fi
     
-    # Update state file (simple sed replacement)
-    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    # Update state file using temp file for cross-platform compatibility
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%dT%H:%M:%SZ)
+    local temp_file="$state_file.tmp"
     
-    # Update current_state
-    sed -i "s/\"current_state\": \"[^\"]*\"/\"current_state\": \"$new_state\"/" "$state_file"
+    # Update current_state using temp file (cross-platform compatible)
+    sed "s/\"current_state\": \"[^\"]*\"/\"current_state\": \"$new_state\"/" "$state_file" > "$temp_file"
+    mv "$temp_file" "$state_file"
     
     # Mark new state as in_progress
     # This is simplified - in production would use proper JSON manipulation

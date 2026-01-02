@@ -489,15 +489,16 @@ EOF
 # Initialize state tracking
 initialize_state() {
     local work_dir="$1"
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%dT%H:%M:%SZ)
     
     cat > "$work_dir/.state" <<EOF
 {
   "current_state": "planning",
-  "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "started_at": "$timestamp",
   "states": {
     "planning": {
       "status": "completed",
-      "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+      "completed_at": "$timestamp",
       "validation": {
         "requirements_exist": true,
         "proposal_created": true,
