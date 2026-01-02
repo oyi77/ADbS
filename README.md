@@ -13,15 +13,90 @@ ADbS helps you work with AI coding assistants (Cursor, Windsurf, Zed, and more) 
 
 ### Installation
 
-One command to rule them all. Detects your OS and IDE automatically.
+Choose your preferred installation method:
 
-```bash
-curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/install.sh | bash
-```
+#### 🪟 Windows
 
+**Chocolatey** (Recommended for Windows):
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/oyi77/ADbS/main/install.ps1" -UseBasicParsing | Invoke-Expression
+choco install adbs
 ```
+
+**Winget**:
+```powershell
+winget install oyi77.ADbS
+```
+
+**PowerShell Script**:
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/oyi77/ADbS/main/distribution/install.ps1" -UseBasicParsing | Invoke-Expression
+```
+
+#### 🐧 Linux / 🍎 macOS
+
+**Bash Script**:
+```bash
+curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/distribution/install.sh | bash
+```
+
+**Homebrew** (macOS/Linux):
+```bash
+brew tap oyi77/adbs
+brew install adbs
+```
+
+#### 📦 npm/yarn (Cross-platform)
+
+**Global install**:
+```bash
+npm install -g @adbs/cli
+# or
+yarn global add @adbs/cli
+```
+
+**Project install**:
+```bash
+npm install --save-dev @adbs/cli
+# or
+yarn add -D @adbs/cli
+```
+
+**Using npx** (no install needed):
+```bash
+npx @adbs/cli setup
+```
+
+---
+
+### Setup PATH
+
+**After installation**, add ADbS to your PATH:
+
+**Bash/Zsh** (Linux/macOS):
+```bash
+# Add to ~/.bashrc or ~/.zshrc:
+export PATH="$PATH:$PWD/.adbs/bin"
+```
+
+**PowerShell** (Windows):
+```powershell
+# Add to PowerShell profile:
+$env:PATH += ";$PWD\.adbs\bin"
+
+# Or add permanently (requires admin):
+[Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';' + (Join-Path $PWD '.adbs\bin'), 'User')
+```
+
+**Or use directly without PATH setup**:
+```bash
+# Linux/macOS
+./.adbs/bin/adbs --help
+
+# Windows
+.\.adbs\bin\adbs.ps1 --help
+```
+
+---
 
 ### First Steps
 
@@ -86,6 +161,24 @@ adbs check                   # Validate current work
 adbs version                 # Show version
 adbs help                    # Show help
 ```
+
+---
+
+## 📁 Directory Structure
+
+ADbS keeps everything organized in a single `.adbs/` directory:
+
+```
+.adbs/
+├── bin/              # ADbS executables (adbs, workflow-enforcer)
+├── lib/              # Internal libraries and scripts
+├── config/           # Configuration templates
+├── work/             # Your active work items
+├── archive/          # Completed work
+└── internal/         # Internal state files
+```
+
+**All ADbS files are self-contained** - your project directory stays clean!
 
 ---
 

@@ -1,0 +1,35 @@
+# Created using wingetcreate 1.5.0.0
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.5.0.schema.json
+
+PackageIdentifier: oyi77.ADbS
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: oyi77
+PublisherUrl: https://github.com/oyi77
+PublisherSupportUrl: https://github.com/oyi77/ADbS/issues
+PackageName: ADbS
+PackageUrl: https://github.com/oyi77/ADbS
+License: MIT
+LicenseUrl: https://github.com/oyi77/ADbS/blob/main/LICENSE
+ShortDescription: AI Development Assistant - Keep your AI focused. Stay organized. Ship faster.
+Description: |-
+  ADbS helps you work with AI coding assistants (Cursor, Windsurf, Zed, and more) by keeping them focused on your goals and preventing hallucinations.
+  
+  Features:
+  - Keep AI focused with structured work items
+  - Organize your work automatically
+  - Prevent AI hallucinations with clear context
+  - Works seamlessly with your IDE
+Moniker: adbs
+Tags:
+- ai
+- development
+- workflow
+- assistant
+- cli
+- cursor
+- windsurf
+- vscode
+ReleaseNotesUrl: https://github.com/oyi77/ADbS/releases/tag/v0.1.0
+ManifestType: defaultLocale
+ManifestVersion: 1.5.0

@@ -1,30 +1,45 @@
 {
-    "name": "adbs-cli",
+    "name": "@adbs/cli",
     "version": "0.1.0",
-    "description": "Ai Don't be Stupid - Workflow Enforcer CLI",
+    "description": "AI Development Assistant - Keep your AI focused. Stay organized. Ship faster.",
+    "main": "index.js",
     "bin": {
-        "adbs": "./bin/adbs"
+        "adbs": "./bin/adbs",
+        "workflow-enforcer": "./bin/workflow-enforcer"
     },
     "scripts": {
+        "postinstall": "node scripts/postinstall.js",
         "test": "bats tests/"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/your-username/ADbS.git"
+        "url": "git+https://github.com/oyi77/ADbS.git"
     },
     "keywords": [
         "ai",
         "workflow",
-        "enforcer",
-        "cli"
+        "development",
+        "assistant",
+        "cli",
+        "cursor",
+        "windsurf",
+        "vscode"
     ],
-    "author": "",
+    "author": "oyi77",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/your-username/ADbS/issues"
+        "url": "https://github.com/oyi77/ADbS/issues"
     },
-    "homepage": "https://github.com/your-username/ADbS#readme",
-    "dependencies": {
-        "shelljs": "^0.8.5"
-    }
+    "homepage": "https://github.com/oyi77/ADbS#readme",
+    "engines": {
+        "node": ">=14.0.0"
+    },
+    "files": [
+        "bin/",
+        "lib/",
+        "config/",
+        "scripts/",
+        "VERSION",
+        "README.md"
+    ]
 }
