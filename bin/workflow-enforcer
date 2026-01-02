@@ -5,21 +5,38 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Internal components (hidden from users)
-WORK_MANAGER="$PROJECT_ROOT/lib/internal/work_manager.sh"
-TASK_BACKEND="$PROJECT_ROOT/lib/internal/task_backend.sh"
-MIGRATOR="$PROJECT_ROOT/lib/internal/migrator.sh"
-STATE_MACHINE="$PROJECT_ROOT/lib/internal/state_machine.sh"
-PLATFORM_DETECTOR="$PROJECT_ROOT/lib/platform_detector.sh"
-RULES_GENERATOR="$PROJECT_ROOT/lib/rules_generator.sh"
+# Determine Installation Root (where scripts are)
+# If running from bin/, root is ..
+INSTALL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Determine Project Root (where .adbs data is)
+# Default to current directory or ADBS_PROJECT_ROOT if set
+if [ -n "$ADBS_PROJECT_ROOT" ]; then
+    PROJECT_ROOT="$ADBS_PROJECT_ROOT"
+else
+    # Fallback: assume current directory is project root
+    PROJECT_ROOT="$(pwd)"
+fi
+
+# Set ADBS_DIR to project's .adbs directory
+export ADBS_DIR="$PROJECT_ROOT/.adbs"
+
+# Internal components (libs relative to INSTALL_ROOT)
+WORK_MANAGER="$INSTALL_ROOT/lib/internal/work_manager.sh"
+TASK_BACKEND="$INSTALL_ROOT/lib/internal/task_backend.sh"
+MIGRATOR="$INSTALL_ROOT/lib/internal/migrator.sh"
+STATE_MACHINE="$INSTALL_ROOT/lib/internal/state_machine.sh"
+PLATFORM_DETECTOR="$INSTALL_ROOT/lib/platform_detector.sh"
+RULES_GENERATOR="$INSTALL_ROOT/lib/rules_generator.sh"
+MEMORY="$INSTALL_ROOT/lib/internal/memory.sh"
+DASHBOARD="$INSTALL_ROOT/lib/internal/dashboard.sh"
 
 # Ensure internal directory exists
 mkdir -p "$PROJECT_ROOT/lib/internal"
 
 # Ensure scripts are executable
-if ! chmod +x "$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" 2>/dev/null; then
+if ! chmod +x "$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" "$DASHBOARD" 2>/dev/null; then
     # chmod failed - likely on Windows or permission issue
     # Check if scripts are already executable or if we're on Windows
     if [ ! -x "$WORK_MANAGER" ] && [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
@@ -59,6 +76,26 @@ case "${1:-}" in
         check_migration
         shift
         "$WORK_MANAGER" complete "$@"
+        ;;
+    
+    rules)
+        # Generate rules
+        check_migration
+        shift
+        "$RULES_GENERATOR" "$@"
+        ;;
+    
+    memory)
+        # Handle memory commands
+        # check_migration # Memory might be used before migration? Maybe safe to check.
+        shift
+        "$MEMORY" "$@"
+        ;;
+    
+    dashboard)
+        # Launch dashboard
+        shift
+        "$DASHBOARD" "$@"
         ;;
     
     show)
