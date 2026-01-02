@@ -448,10 +448,57 @@ main() {
     find bin -type f -exec chmod +x {} \; 2>/dev/null || true
     chmod +x install.sh 2>/dev/null || true
     
-    # Copy adbs command to .adbs/bin for easy access
-    if [ -f "bin/adbs" ]; then
-        cp bin/adbs .adbs/bin/adbs
+    # Create adbs wrapper script in .adbs/bin
+    # For remote installations, create a standalone script
+    # For local installations, use the repository script
+    if [ -f "bin/workflow-enforcer" ]; then
+        # Local installation - copy the wrapper
+        if [ -f "bin/adbs" ]; then
+            cp bin/adbs .adbs/bin/adbs
+            chmod +x .adbs/bin/adbs
+        fi
+    else
+        # Remote installation - create standalone adbs command
+        print_info "Downloading ADbS scripts..."
+        
+        # Download workflow-enforcer to .adbs/internal
+        local base_url="https://raw.githubusercontent.com/oyi77/ADbS/main"
+        mkdir -p .adbs/internal/lib
+        
+        if command -v curl &> /dev/null; then
+            curl -fsSL "$base_url/bin/workflow-enforcer" > .adbs/internal/workflow-enforcer 2>/dev/null || true
+            # Download essential lib files
+            curl -fsSL "$base_url/lib/platform_detector.sh" > .adbs/internal/lib/platform_detector.sh 2>/dev/null || true
+            curl -fsSL "$base_url/lib/rules_generator.sh" > .adbs/internal/lib/rules_generator.sh 2>/dev/null || true
+        elif command -v wget &> /dev/null; then
+            wget -qO .adbs/internal/workflow-enforcer "$base_url/bin/workflow-enforcer" 2>/dev/null || true
+            wget -qO .adbs/internal/lib/platform_detector.sh "$base_url/lib/platform_detector.sh" 2>/dev/null || true
+            wget -qO .adbs/internal/lib/rules_generator.sh "$base_url/lib/rules_generator.sh" 2>/dev/null || true
+        fi
+        
+        chmod +x .adbs/internal/workflow-enforcer 2>/dev/null || true
+        chmod +x .adbs/internal/lib/*.sh 2>/dev/null || true
+        
+        # Create adbs wrapper that uses the downloaded workflow-enforcer
+        cat > .adbs/bin/adbs <<'ADBS_SCRIPT'
+#!/bin/bash
+# ADbS - AI Don't Be Stupid
+# Standalone wrapper for remote installations
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ADBS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Use the downloaded workflow-enforcer
+if [ -f "$ADBS_ROOT/internal/workflow-enforcer" ]; then
+    exec "$ADBS_ROOT/internal/workflow-enforcer" "$@"
+else
+    echo "Error: ADbS workflow-enforcer not found"
+    echo "Please reinstall ADbS"
+    exit 1
+fi
+ADBS_SCRIPT
         chmod +x .adbs/bin/adbs
+        print_success "Downloaded ADbS scripts"
     fi
     
     # Download task manager silently
@@ -461,12 +508,28 @@ main() {
     local bin_path="$(pwd)/.adbs/bin"
     local shell_rc=""
     
-    # Detect shell config file
-    if [ -n "$BASH_VERSION" ]; then
-        shell_rc="$HOME/.bashrc"
-    elif [ -n "$ZSH_VERSION" ]; then
-        shell_rc="$HOME/.zshrc"
-    fi
+    # Detect user's actual shell (not the current script shell)
+    local user_shell="$(basename "$SHELL")"
+    
+    case "$user_shell" in
+        bash)
+            shell_rc="$HOME/.bashrc"
+            ;;
+        zsh)
+            shell_rc="$HOME/.zshrc"
+            ;;
+        fish)
+            shell_rc="$HOME/.config/fish/config.fish"
+            ;;
+        *)
+            # Try to detect from common files
+            if [ -f "$HOME/.zshrc" ]; then
+                shell_rc="$HOME/.zshrc"
+            elif [ -f "$HOME/.bashrc" ]; then
+                shell_rc="$HOME/.bashrc"
+            fi
+            ;;
+    esac
     
     # Add to PATH if not already there
     if [ -n "$shell_rc" ] && [ -f "$shell_rc" ]; then
@@ -476,9 +539,12 @@ main() {
             echo "export PATH=\"\$PATH:$bin_path\"" >> "$shell_rc"
             print_success "Added ADbS to PATH in $shell_rc"
         fi
+    else
+        print_warning "Could not detect shell config file"
+        print_info "Add to PATH manually: export PATH=\"\$PATH:$bin_path\""
     fi
     
-    # Also make it available in current session
+    # Also add to current session
     export PATH="$PATH:$bin_path"
     
     echo ""
