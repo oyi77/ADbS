@@ -19,6 +19,10 @@ One command to rule them all. Detects your OS and IDE automatically.
 curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/install.sh | bash
 ```
 
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/oyi77/ADbS/main/install.ps1" -UseBasicParsing | Invoke-Expression
+```
+
 ### First Steps
 
 ```bash

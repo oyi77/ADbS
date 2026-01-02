@@ -278,24 +278,35 @@ main() {
     print_success "Created rules directory: $rules_dir"
     
     # Generate rules files using rules generator
+    local rules_generated=false
     if [ -f "lib/rules_generator.sh" ]; then
         print_info "Generating platform-specific rules files..."
         chmod +x lib/rules_generator.sh 2>/dev/null || true
-        lib/rules_generator.sh generate "$platform" > /dev/null 2>&1 || true
-        print_success "Generated rules files in $rules_dir/rules/"
-    else
-        # Fallback to old single-file generation
-        if [ ! -f "$rules_dir/$rules_file" ]; then
+        if lib/rules_generator.sh generate "$platform" > /dev/null 2>&1; then
+            print_success "Generated rules files in $rules_dir/rules/"
+            rules_generated=true
+        else
+            print_warning "Rules generator failed, falling back to basic rules generation"
+        fi
+    fi
+    
+    # Fallback to old single-file generation only if rules_generator didn't succeed
+    if [ "$rules_generated" = "false" ]; then
+        if [ ! -f "$rules_dir/$rules_file" ] && [ ! -d "$rules_dir/$rules_file" ]; then
             generate_rules_file "$rules_dir" "$rules_file"
         else
-            print_warning "Rules file already exists: $rules_dir/$rules_file"
-            if [ "$INSTALL_FORCE_YES" = "true" ]; then
-                generate_rules_file "$rules_dir" "$rules_file"
+            if [ -d "$rules_dir/$rules_file" ]; then
+                print_success "Rules directory already exists: $rules_dir/$rules_file/"
             else
-                read -p "Overwrite? (y/N): " -n 1 -r
-                echo
-                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                print_warning "Rules file already exists: $rules_dir/$rules_file"
+                if [ "$INSTALL_FORCE_YES" = "true" ]; then
                     generate_rules_file "$rules_dir" "$rules_file"
+                else
+                    read -p "Overwrite? (y/N): " -n 1 -r
+                    echo
+                    if [[ $REPLY =~ ^[Yy]$ ]]; then
+                        generate_rules_file "$rules_dir" "$rules_file"
+                    fi
                 fi
             fi
         fi
