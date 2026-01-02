@@ -1,6 +1,6 @@
 #!/bin/bash
 # ADbS Installation Script
-# Single-line installation: curl -sSL https://raw.githubusercontent.com/your-username/ADbS/main/install.sh | bash
+# Single-line installation: curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/install.sh | bash
 
 set -e
 
@@ -239,6 +239,15 @@ download_beads() {
 
 # Main installation
 main() {
+    # Parse flags
+    local force_yes=false
+    for arg in "$@"; do
+        case "$arg" in
+            --yes|-y) force_yes=true ;;
+        esac
+    done
+    export INSTALL_FORCE_YES="$force_yes"
+    
     # Route to appropriate installer if needed
     route_installer "$@"
     
@@ -280,21 +289,21 @@ main() {
             generate_rules_file "$rules_dir" "$rules_file"
         else
             print_warning "Rules file already exists: $rules_dir/$rules_file"
-            read -p "Overwrite? (y/N): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if [ "$INSTALL_FORCE_YES" = "true" ]; then
                 generate_rules_file "$rules_dir" "$rules_file"
+            else
+                read -p "Overwrite? (y/N): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    generate_rules_file "$rules_dir" "$rules_file"
+                fi
             fi
         fi
     fi
     
-    # Create SDD directory structure
-    mkdir -p ".sdd/plans" ".sdd/requirements" ".sdd/designs" ".sdd/tasks"
-    print_success "Created SDD directory structure: .sdd/"
-    
-    # Create workflow directory (for stage tracking)
-    mkdir -p ".workflow-enforcer"
-    print_success "Created workflow directory: .workflow-enforcer"
+    # Create ADbS directory structure
+    mkdir -p ".adbs/work" ".adbs/archive" ".adbs/internal"
+    print_success "Created ADbS directory structure: .adbs/"
     
     # Initialize workflow
     if [ ! -f ".workflow-enforcer/current-stage" ]; then
