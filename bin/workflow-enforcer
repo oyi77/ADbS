@@ -2,13 +2,21 @@
 # ADbS - AI Development Assistant
 # Main CLI entry point
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Determine Installation Root (where scripts are)
 # If running from bin/, root is ..
 INSTALL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source common utilities
+if [ -f "$INSTALL_ROOT/lib/core/common.sh" ]; then
+    source "$INSTALL_ROOT/lib/core/common.sh"
+fi
+if [ -f "$INSTALL_ROOT/lib/utils.sh" ]; then
+    source "$INSTALL_ROOT/lib/utils.sh"
+fi
 
 # Determine Project Root (where .adbs data is)
 # Default to current directory or ADBS_PROJECT_ROOT if set
@@ -51,31 +59,27 @@ check_migration() {
         echo ""
         echo "⚠️  Old ADbS structure detected"
         echo ""
-        "$MIGRATOR" check >/dev/null 2>&1 && "$MIGRATOR" auto
+        if [ -f "$MIGRATOR" ]; then
+            if "$MIGRATOR" check >/dev/null 2>&1; then
+                if ! "$MIGRATOR" auto; then
+                    log_error "Migration failed, but continuing"
+                fi
+            else
+                log_warning "Migration check failed, skipping auto-migration"
+            fi
+        else
+            log_warning "Migrator not found at $MIGRATOR"
+        fi
         echo ""
     fi
 }
 
 # Helper: Find work directory by name (exact or date-prefixed)
+# Uses common.sh implementation
 find_work_dir() {
     local name="$1"
-    local work_dir=".adbs/work"
-    
-    # 1. Exact match
-    if [ -d "$work_dir/$name" ]; then
-        echo "$work_dir/$name"
-        return 0
-    fi
-    
-    # 2. Date-prefixed match
-    for path in "$work_dir"/*-"$name"; do
-        if [ -d "$path" ]; then
-            echo "$path"
-            return 0
-        fi
-    done
-    
-    return 1
+    local work_dir="${ADBS_DIR:-.adbs}/work"
+    find_work_dir "$name" "$work_dir"
 }
 
 # Main command handler
@@ -243,9 +247,9 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=$(find_work_dir "$work_name")
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
         
-        if [ -z "$work_dir" ]; then
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
             exit 1
         fi
@@ -266,9 +270,9 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=$(find_work_dir "$work_name")
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
         
-        if [ -z "$work_dir" ]; then
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
             exit 1
         fi
@@ -289,9 +293,9 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=$(find_work_dir "$work_name")
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
         
-        if [ -z "$work_dir" ]; then
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
             exit 1
         fi
@@ -312,9 +316,9 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=$(find_work_dir "$work_name")
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
         
-        if [ -z "$work_dir" ]; then
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
             exit 1
         fi
@@ -338,9 +342,9 @@ case "${1:-}" in
         fi
         
         # Find work directory
-        work_dir=$(find_work_dir "$work_name")
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
         
-        if [ -z "$work_dir" ]; then
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
             echo "Error: Work '$work_name' not found"
             exit 1
         fi

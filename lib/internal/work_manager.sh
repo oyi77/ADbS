@@ -2,10 +2,18 @@
 # Work Manager - Abstraction layer for work items
 # Hides OpenSpec/SDD implementation details from users
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source common utilities
+if [ -f "$PROJECT_ROOT/lib/core/common.sh" ]; then
+    source "$PROJECT_ROOT/lib/core/common.sh"
+fi
+if [ -f "$PROJECT_ROOT/lib/utils.sh" ]; then
+    source "$PROJECT_ROOT/lib/utils.sh"
+fi
 
 # Internal engines (hidden from users)
 OPENSPEC_ENGINE="$PROJECT_ROOT/lib/internal/openspec_engine.sh"
@@ -37,35 +45,34 @@ detect_workflow() {
 }
 
 # Helper: Find work directory by name (exact or date-prefixed)
-find_work_dir() {
-    local name="$1"
-    
-    # 1. Exact match
-    if [ -d "$WORK_DIR/$name" ]; then
-        echo "$WORK_DIR/$name"
-        return 0
-    fi
-    
-    # 2. Date-prefixed match
-    for path in "$WORK_DIR"/*-"$name"; do
-        if [ -d "$path" ]; then
-            echo "$path"
-            return 0
-        fi
-    done
-    
-    return 1
-}
+# Uses common.sh implementation - no local override needed
 
 # Create new work item
 create_work() {
     local name="$1"
     local ai_generate="${2:-}"
     
+    # Validate input
     if [ -z "$name" ]; then
-        echo "Error: Work name required"
+        log_error "Work name required"
         echo "Usage: adbs new <name> [--ai-generate]"
         exit 1
+    fi
+    
+    # Sanitize name to prevent directory traversal
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ ^/ ]]; then
+        log_error "Invalid work name: contains path traversal characters"
+        exit 1
+    fi
+    
+    # Validate name doesn't contain invalid characters
+    if [[ "$name" =~ [^a-zA-Z0-9_-] ]]; then
+        log_warning "Work name contains special characters, sanitizing..."
+        name=$(echo "$name" | tr -cd 'a-zA-Z0-9_-' | head -c 100)
+        if [ -z "$name" ]; then
+            log_error "Work name became empty after sanitization"
+            exit 1
+        fi
     fi
 
     # Check preferences if mode not explicitly set
@@ -107,13 +114,16 @@ create_work() {
     
     # Check if already exists
     if [ -d "$work_path" ]; then
-        echo "Error: Work '$name' already exists"
+        log_error "Work '$name' already exists"
         echo "Use 'adbs show $name' to view it"
         exit 1
     fi
     
     # Create work directory
-    mkdir -p "$work_path"
+    if ! ensure_dir_safe "$work_path"; then
+        log_error "Failed to create work directory at $work_path"
+        exit 1
+    fi
     
     # Check if AI generation requested
     if [ "$ai_generate" = "true" ] || [ "$ai_generate" = "--ai-generate" ]; then
@@ -252,16 +262,24 @@ show_work() {
 complete_work() {
     local name="$1"
     
+    # Validate input
     if [ -z "$name" ]; then
-        echo "Error: Work name required"
+        log_error "Work name required"
         echo "Usage: adbs done <name>"
         exit 1
     fi
     
-    # Find work by name
-    local work_path=$(find_work_dir "$name")
+    # Sanitize name
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ ^/ ]]; then
+        log_error "Invalid work name: contains path traversal characters"
+        exit 1
+    fi
     
-    if [ -z "$work_path" ]; then
+    # Find work by name
+    local work_path
+    work_path=$(find_work_dir "$name" "$WORK_DIR")
+    
+    if [ -z "$work_path" ] || [ ! -d "$work_path" ]; then
         echo "Error: Work '$name' not found"
         echo "Use 'adbs list' to see active work"
         exit 1
@@ -342,19 +360,29 @@ export_context() {
     
      if [ -z "$name" ]; then
         # Default to most recent work if no name provided
-        local recent=$(ls -td "$WORK_DIR"/* | head -1)
-        if [ -n "$recent" ]; then
-            name=$(basename "$recent" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//')
+        if [ -d "$WORK_DIR" ]; then
+            local recent
+            recent=$(ls -td "$WORK_DIR"/* 2>/dev/null | head -1)
+            if [ -n "$recent" ] && [ -d "$recent" ]; then
+                name=$(basename "$recent" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//')
+            fi
         fi
     fi
     
     if [ -z "$name" ]; then
-        echo "Error: Work name required"
+        log_error "Work name required"
+        exit 1
+    fi
+    
+    # Sanitize name
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ ^/ ]]; then
+        log_error "Invalid work name: contains path traversal characters"
         exit 1
     fi
 
-    local work_path=$(find_work_dir "$name")
-    if [ -z "$work_path" ]; then
+    local work_path
+    work_path=$(find_work_dir "$name" "$WORK_DIR")
+    if [ -z "$work_path" ] || [ ! -d "$work_path" ]; then
         echo "Error: Work '$name' not found"
         exit 1
     fi
