@@ -3,6 +3,10 @@ title: 'ADbS: AI Development Assistant'
 languageCode: 'en-us'
 theme: 'PaperMod'
 
+# Suppress warnings
+ignoreLogs:
+  - warning-goldmark-raw-html
+
 params:
   env: production
   title: 'ADbS: AI Development Assistant'
@@ -51,7 +55,8 @@ params:
   ShowShareButtons: true
   
   # Footer
-  footer: '<a href="https://github.com/oyi77/ADbS">ADbS</a> | Made with ❤️ for developers working with AI assistants'
+  hideFooter: false
+  hideCopyright: false
 
 menu:
   main:

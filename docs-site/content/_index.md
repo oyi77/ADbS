@@ -69,11 +69,9 @@ Just install and run. ADbS automatically detects your IDE and sets everything up
 
 ## Get Started
 
-<div style="display: flex; gap: 1rem; flex-wrap: wrap; margin: 2rem 0;">
-  <a href="/installation/" style="padding: 0.75rem 1.5rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">📦 Installation Guide</a>
-  <a href="/usage/" style="padding: 0.75rem 1.5rem; background: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">📖 Usage Guide</a>
-  <a href="/demo/" style="padding: 0.75rem 1.5rem; background: #17a2b8; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">🎬 See Demo</a>
-</div>
+- [📦 Installation Guide](/installation/) - Learn how to install ADbS
+- [📖 Usage Guide](/usage/) - Learn how to use ADbS
+- [🎬 See Demo](/demo/) - See ADbS in action with examples
 
 ## Documentation
 
