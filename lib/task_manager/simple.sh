@@ -45,27 +45,6 @@ init_tasks() {
             return 1
         }
     fi
-    # Ensure tasks have all new fields
-    if [ "$JQ_CMD" = "jq" ]; then
-        local temp_file="${TASKS_FILE}.tmp.$$"
-        if jq '.tasks[] |= (. + {tags: (.tags // []), depends_on: (.depends_on // []), comments: (.comments // [])})' "$TASKS_FILE" > "$temp_file" 2>&1; then
-            # Validate JSON before moving
-            if jq . "$temp_file" > /dev/null 2>&1; then
-                mv "$temp_file" "$TASKS_FILE" || {
-                    rm -f "$temp_file"
-                    echo "Error: Failed to update tasks file" >&2
-                    return 1
-                }
-            else
-                rm -f "$temp_file"
-                echo "Error: Generated invalid JSON" >&2
-                return 1
-            fi
-        else
-            rm -f "$temp_file"
-            echo "Warning: Failed to update task fields, continuing with existing format" >&2
-        fi
-    fi
 }
 
 # Generate a short random ID (similar to beads format)
@@ -648,76 +627,78 @@ PYTHON
 }
 
 # Main command handler
-case "${1:-}" in
-    create)
-        shift
-        create_task "$@"
-        ;;
-    update)
-        shift
-        update_task "$@"
-        ;;
-    list)
-        shift
-        list_tasks "$@"
-        ;;
-    get)
-        shift
-        get_task "$@"
-        ;;
-    delete)
-        shift
-        delete_task "$@"
-        ;;
-    export)
-        shift
-        export_tasks "$@"
-        ;;
-    import)
-        shift
-        import_tasks "$@"
-        ;;
-    comment)
-        shift
-        add_comment "$@"
-        ;;
-    tag)
-        shift
-        add_tag "$@"
-        ;;
-    search)
-        shift
-        search_tasks "$@"
-        ;;
-    tree)
-        shift
-        print_tree "$@"
-        ;;
-    report)
-        shift
-        print_report "$@"
-        ;;
-    *)
-        echo "Usage: $0 {create|update|list|tree|report|get|delete|export|import|comment|tag|search} [args]"
-        echo ""
-        echo "Commands:"
-        echo "  create <desc> [priority] [parent] [depends_on] [tags]  - Create a new task"
-        echo "  update <id> <field> <value>                            - Update a task field"
-        echo "  list [status] [priority] [tag] [desc]                 - List tasks (optionally filtered)"
-        echo "  tree                                                   - Show tasks as tree"
-        echo "  report                                                 - Generate Markdown status report"
-        echo "  search [status] [priority] [tag] [desc]                - Search tasks"
-        echo "  get <id>                                               - Get task by ID"
-        echo "  delete <id>                                            - Delete a task"
-        echo "  comment <id> <comment>                                  - Add comment to task"
-        echo "  tag <id> <tag>                                         - Add tag to task"
-        echo "  export [file]                                          - Export tasks to JSON"
-        echo "  import [file]                                          - Import tasks from JSON"
-        echo ""
-        echo "Examples:"
-        echo "  $0 create 'Implement feature' high '' 'frontend,urgent'"
-        echo "  $0 tree"
-        echo "  $0 report > report.md"
-        exit 1
-        ;;
-esac
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        create)
+            shift
+            create_task "$@"
+            ;;
+        update)
+            shift
+            update_task "$@"
+            ;;
+        list)
+            shift
+            list_tasks "$@"
+            ;;
+        get)
+            shift
+            get_task "$@"
+            ;;
+        delete)
+            shift
+            delete_task "$@"
+            ;;
+        export)
+            shift
+            export_tasks "$@"
+            ;;
+        import)
+            shift
+            import_tasks "$@"
+            ;;
+        comment)
+            shift
+            add_comment "$@"
+            ;;
+        tag)
+            shift
+            add_tag "$@"
+            ;;
+        search)
+            shift
+            search_tasks "$@"
+            ;;
+        tree)
+            shift
+            print_tree "$@"
+            ;;
+        report)
+            shift
+            print_report "$@"
+            ;;
+        *)
+            echo "Usage: $0 {create|update|list|tree|report|get|delete|export|import|comment|tag|search} [args]"
+            echo ""
+            echo "Commands:"
+            echo "  create <desc> [priority] [parent] [depends_on] [tags]  - Create a new task"
+            echo "  update <id> <field> <value>                            - Update a task field"
+            echo "  list [status] [priority] [tag] [desc]                 - List tasks (optionally filtered)"
+            echo "  tree                                                   - Show tasks as tree"
+            echo "  report                                                 - Generate Markdown status report"
+            echo "  search [status] [priority] [tag] [desc]                - Search tasks"
+            echo "  get <id>                                               - Get task by ID"
+            echo "  delete <id>                                            - Delete a task"
+            echo "  comment <id> <comment>                                  - Add comment to task"
+            echo "  tag <id> <tag>                                         - Add tag to task"
+            echo "  export [file]                                          - Export tasks to JSON"
+            echo "  import [file]                                          - Import tasks from JSON"
+            echo ""
+            echo "Examples:"
+            echo "  $0 create 'Implement feature' high '' 'frontend,urgent'"
+            echo "  $0 tree"
+            echo "  $0 report > report.md"
+            exit 1
+            ;;
+    esac
+fi
