@@ -73,15 +73,16 @@ detect_platform() {
 detect_all_platforms() {
     local platforms=()
     
-    [ -d ".cursor" ] || [ -n "${CURSOR}" ] && platforms+=("cursor")
-    [ -d ".trae" ] || [ -n "${TRAE}" ] && platforms+=("trae")
-    [ -d ".gemini" ] || [ -n "${GEMINI}" ] && platforms+=("gemini")
-    [ -d ".vscode" ] || [ -n "${VSCODE}" ] || [ -n "${CODE}" ] && platforms+=("vscode")
+    # Fix operator precedence: use parentheses to group OR conditions before AND
+    ([ -d ".cursor" ] || [ -n "${CURSOR}" ]) && platforms+=("cursor")
+    ([ -d ".trae" ] || [ -n "${TRAE}" ]) && platforms+=("trae")
+    ([ -d ".gemini" ] || [ -n "${GEMINI}" ]) && platforms+=("gemini")
+    ([ -d ".vscode" ] || [ -n "${VSCODE}" ] || [ -n "${CODE}" ]) && platforms+=("vscode")
     [ -d ".idea" ] && platforms+=("jetbrains")
-    [ -f ".vimrc" ] || [ -d ".config/nvim" ] && platforms+=("vim")
-    [ -f ".emacs" ] || [ -f ".emacs.d" ] && platforms+=("emacs")
-    [ -d ".zed" ] || [ -n "${ZED_TERM}" ] && platforms+=("zed")
-    [ -n "$(find . -maxdepth 1 -name "*.sublime-project" -print -quit)" ] && platforms+=("sublime")
+    ([ -f ".vimrc" ] || [ -d ".config/nvim" ]) && platforms+=("vim")
+    ([ -f ".emacs" ] || [ -f ".emacs.d" ]) && platforms+=("emacs")
+    ([ -d ".zed" ] || [ -n "${ZED_TERM}" ]) && platforms+=("zed")
+    [ -n "$(find . -maxdepth 1 -name "*.sublime-project" -print -quit 2>/dev/null)" ] && platforms+=("sublime")
     [ -d ".helix" ] && platforms+=("helix")
     
     [ ${#platforms[@]} -eq 0 ] && platforms+=("generic")

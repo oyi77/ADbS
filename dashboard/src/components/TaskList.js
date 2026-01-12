@@ -4,21 +4,39 @@ const TaskList = () => {
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // In a real app, this would fetch from an API
-    // For MVP, we mock the data structure expected from ADbS
+    // Fetch from the actual ADbS API
     useEffect(() => {
-        const mockTasks = [
-            { id: 1, title: "Initialize Project", status: "completed", priority: "high" },
-            { id: 2, title: "Setup Testing", status: "completed", priority: "critical" },
-            { id: 3, title: "Create Distribution Packages", status: "in-progress", priority: "high" },
-            { id: 4, title: "VS Code Extension", status: "pending", priority: "medium" }
-        ];
+        const fetchTasks = async () => {
+            try {
+                // Use relative path to leverage the proxy in development (package.json)
+                // and same-origin in production.
+                const apiUrl = '/api/tasks';
 
-        // Simulate delay
-        setTimeout(() => {
-            setTasks(mockTasks);
-            setLoading(false);
-        }, 800);
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch tasks');
+                }
+
+                const data = await response.json();
+
+                // Map the ADbS task structure to the component's expected structure
+                // ADbS tasks have 'description' instead of 'title'
+                const mappedTasks = (data.tasks || []).map(task => ({
+                    ...task,
+                    title: task.description || 'Untitled Task'
+                }));
+
+                setTasks(mappedTasks);
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+                // Fallback or empty state could be handled here
+                setTasks([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTasks();
     }, []);
 
     if (loading) return <div>Loading Tasks...</div>;

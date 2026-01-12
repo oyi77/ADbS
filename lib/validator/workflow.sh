@@ -31,7 +31,9 @@ init_workflow() {
     fi
     # Initialize plan index if needed
     if [ -f "$PLAN_MANAGER" ]; then
-        "$PLAN_MANAGER" generate > /dev/null 2>&1 || true
+        if ! "$PLAN_MANAGER" generate > /dev/null 2>&1; then
+            log_warning "Failed to generate plan index, continuing anyway"
+        fi
     fi
 }
 
@@ -85,12 +87,27 @@ check_file_contains() {
     shift
     local required_strings=("$@")
     
+    if [ -z "$file" ]; then
+        return 1
+    fi
+    
     if [ ! -f "$file" ]; then
         return 1
     fi
     
+    if [ ! -r "$file" ]; then
+        return 1
+    fi
+    
+    if [ ${#required_strings[@]} -eq 0 ]; then
+        return 0
+    fi
+    
     for str in "${required_strings[@]}"; do
-        if ! grep -qi "$str" "$file" 2>/dev/null; then
+        if [ -z "$str" ]; then
+            continue
+        fi
+        if ! grep -qi "$str" "$file" 2>&1; then
             return 1
         fi
     done
