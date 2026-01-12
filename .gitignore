@@ -1,8 +1,9 @@
 
-# Generated / Runtime folders to ignore
+# Generated / Runtime folders to ignore (user-specific)
 .sdd/
 .openspec/
 .workflow-enforcer/
+.adbs/                    # NEW: User's work directory
 .cursor/
 .windsurf/
 .trae/
@@ -13,7 +14,19 @@
 .DS_Store
 .beads/
 openspec/
-AGENTS.md
+AGENTS.md                 # Generated from templates
+test-project/             # Test directory for validation
+
+# Generated rule files (created by adbs setup)
+.rules                    # Zed rules
+*.mdc                     # Generated MDC files
+.cursor/rules/            # Cursor rules
+.windsurf/rules/          # Windsurf rules
+
+# User task files
+tasks.json
+.adbs-tasks.json
+
 # Test artifacts
 test-results/
 *.tap
@@ -26,4 +39,6 @@ temp/
 # Keep .agent and .git
 !.agent/
 !.gitignore
-dashboard/node_modules
+vscode-extension/node_modules/
+vscode-extension/out/
+dashboard/node_modules/

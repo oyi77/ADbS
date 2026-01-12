@@ -221,3 +221,92 @@ assert_contains() {
         return 1
     fi
 }
+
+# Load fixture file
+load_fixture() {
+    local fixture_path="$1"
+    local full_path="$TEST_DIR/fixtures/$fixture_path"
+    
+    if [ ! -f "$full_path" ]; then
+        echo "Fixture file not found: $full_path" >&2
+        return 1
+    fi
+    
+    cat "$full_path"
+}
+
+# Copy fixture directory to temp location
+copy_fixture_dir() {
+    local fixture_name="$1"
+    local dest_dir="${2:-$TEMP_DIR}"
+    local fixture_path="$TEST_DIR/fixtures/$fixture_name"
+    
+    if [ ! -d "$fixture_path" ]; then
+        echo "Fixture directory not found: $fixture_path" >&2
+        return 1
+    fi
+    
+    cp -r "$fixture_path" "$dest_dir/"
+    echo "$dest_dir/$(basename "$fixture_path")"
+}
+
+# Load task fixture
+load_task_fixture() {
+    local fixture_name="$1"
+    load_fixture "tasks/${fixture_name}.json"
+}
+
+# Setup SDD project fixture
+setup_sdd_fixture() {
+    local project_dir="$TEMP_DIR/test_project"
+    copy_fixture_dir "sample_sdd_project" "$TEMP_DIR"
+    mv "$TEMP_DIR/sample_sdd_project" "$project_dir"
+    echo "$project_dir"
+}
+
+# Setup OpenSpec project fixture
+setup_openspec_fixture() {
+    local project_dir="$TEMP_DIR/test_project"
+    copy_fixture_dir "sample_openspec_project" "$TEMP_DIR"
+    mv "$TEMP_DIR/sample_openspec_project" "$project_dir"
+    echo "$project_dir"
+}
+
+# Mock IDE environment
+mock_ide_env() {
+    local ide_name="$1"
+    local ide_config=$(load_fixture "ide_configs/${ide_name}.json")
+    
+    if [ -z "$ide_config" ]; then
+        echo "IDE config not found for: $ide_name" >&2
+        return 1
+    fi
+    
+    export MOCK_IDE="$ide_name"
+    export MOCK_IDE_CONFIG="$ide_config"
+}
+
+# Assert JSON contains key
+assert_json_key() {
+    local json="$1"
+    local key="$2"
+    
+    if ! echo "$json" | grep -q "\"$key\""; then
+        echo "Expected JSON to contain key: $key" >&2
+        return 1
+    fi
+}
+
+# Assert task status
+assert_task_status() {
+    local task_json="$1"
+    local task_id="$2"
+    local expected_status="$3"
+    
+    local actual_status=$(echo "$task_json" | grep -A 10 "\"id\": \"$task_id\"" | grep "\"status\"" | cut -d'"' -f4)
+    
+    if [ "$actual_status" != "$expected_status" ]; then
+        echo "Expected task $task_id to have status '$expected_status', got '$actual_status'" >&2
+        return 1
+    fi
+}

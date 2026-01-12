@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Pre-commit hook template for ADbS
+# To install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -e
+
+echo "Running pre-commit tests..."
+
+# Check if BATS is installed
+if ! command -v bats &> /dev/null; then
+    echo "⚠️  BATS not installed. Install with:"
+    echo "  - macOS: brew install bats-core"
+    echo "  - Ubuntu: sudo apt-get install bats"
+    echo "  - Windows: npm install -g bats"
+    echo ""
+    echo "Skipping tests..."
+    exit 0
+fi
+
+# Run unit tests
+echo "Running unit tests..."
+if ! bats tests/unit/; then
+    echo "❌ Unit tests failed. Commit aborted."
+    exit 1
+fi
+
+# Run integration tests
+echo "Running integration tests..."
+if ! bats tests/integration/; then
+    echo "❌ Integration tests failed. Commit aborted."
+    exit 1
+fi
+
+echo "✅ All tests passed!"
+exit 0

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>adbs</id>
+    <version>0.1.0</version>
+    <title>ADbS - AI Development Assistant</title>
+    <authors>oyi77</authors>
+    <projectUrl>https://github.com/oyi77/ADbS</projectUrl>
+    <license type="expression">MIT</license>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>AI Development Assistant - Keep your AI focused. Stay organized. Ship faster. Works with Cursor, Windsurf, VS Code, and other AI coding assistants.</description>
+    <summary>Workflow management tool for AI-assisted development</summary>
+    <tags>ai development workflow cursor windsurf vscode cli assistant</tags>
+    <projectSourceUrl>https://github.com/oyi77/ADbS</projectSourceUrl>
+    <packageSourceUrl>https://github.com/oyi77/ADbS/tree/main/distribution/chocolatey</packageSourceUrl>
+    <docsUrl>https://github.com/oyi77/ADbS#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/oyi77/ADbS/issues</bugTrackerUrl>
+    <releaseNotes>https://github.com/oyi77/ADbS/blob/main/CHANGELOG.md</releaseNotes>
+    <dependencies>
+      <dependency id="git" version="2.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

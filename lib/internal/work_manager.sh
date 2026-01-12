@@ -1,0 +1,438 @@
+#!/bin/bash
+# Work Manager - Abstraction layer for work items
+# Hides OpenSpec/SDD implementation details from users
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source common utilities
+if [ -f "$PROJECT_ROOT/lib/core/common.sh" ]; then
+    source "$PROJECT_ROOT/lib/core/common.sh"
+fi
+if [ -f "$PROJECT_ROOT/lib/utils.sh" ]; then
+    source "$PROJECT_ROOT/lib/utils.sh"
+fi
+
+# Internal engines (hidden from users)
+OPENSPEC_ENGINE="$PROJECT_ROOT/lib/internal/openspec_engine.sh"
+VALIDATOR="$PROJECT_ROOT/lib/internal/validator.sh"
+WORKFLOW_GENERATOR="$PROJECT_ROOT/lib/internal/workflow_generator.sh"
+STATE_MACHINE="$PROJECT_ROOT/lib/internal/state_machine.sh"
+MEMORY_LIB="$SCRIPT_DIR/memory.sh"
+
+# Source memory if available
+if [ -f "$MEMORY_LIB" ]; then
+    source "$MEMORY_LIB"
+fi
+
+# Work directory (new structure)
+WORK_DIR="${ADBS_DIR:-.adbs}/work"
+ARCHIVE_DIR="${ADBS_DIR:-.adbs}/archive"
+INTERNAL_DIR="${ADBS_DIR:-.adbs}/internal"
+
+# Source workflow generator if it exists
+if [ -f "$WORKFLOW_GENERATOR" ]; then
+    source "$WORKFLOW_GENERATOR"
+fi
+
+# Detect project complexity and choose workflow
+detect_workflow() {
+    # Always use OpenSpec (simple and covers 90% of cases)
+    # Future enhancement: Add SDD detection based on .sdd directory presence
+    echo "openspec"
+}
+
+# Helper: Find work directory by name (exact or date-prefixed)
+# Uses common.sh implementation - no local override needed
+
+# Create new work item
+create_work() {
+    local name="$1"
+    local ai_generate="${2:-}"
+    
+    # Validate input
+    if [ -z "$name" ]; then
+        log_error "Work name required"
+        echo "Usage: adbs new <name> [--ai-generate]"
+        exit 1
+    fi
+    
+    # Sanitize name to prevent directory traversal
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ ^/ ]]; then
+        log_error "Invalid work name: contains path traversal characters"
+        exit 1
+    fi
+    
+    # Validate name doesn't contain invalid characters
+    if [[ "$name" =~ [^a-zA-Z0-9_-] ]]; then
+        log_warning "Work name contains special characters, sanitizing..."
+        name=$(echo "$name" | tr -cd 'a-zA-Z0-9_-' | head -c 100)
+        if [ -z "$name" ]; then
+            log_error "Work name became empty after sanitization"
+            exit 1
+        fi
+    fi
+
+    # Check preferences if mode not explicitly set
+    if [ -z "$ai_generate" ] && type get_preference >/dev/null 2>&1; then
+        local pref_mode=$(get_preference "default_workflow_mode")
+        if [ "$pref_mode" = "ai" ]; then
+            ai_generate="--ai-generate"
+            echo "Tip: Auto-enabling AI workflow based on your preference."
+        fi
+    fi
+    
+    # Default to false if still empty
+    if [ -z "$ai_generate" ]; then
+        ai_generate="false"
+    fi
+    
+    # Learn preference
+    if type remember_preference >/dev/null 2>&1; then
+        if [ "$ai_generate" = "true" ] || [ "$ai_generate" = "--ai-generate" ]; then
+            remember_preference "default_workflow_mode" "ai"
+        else
+            remember_preference "default_workflow_mode" "manual"
+        fi
+    fi
+    
+    # Ensure work directory exists
+    mkdir -p "$WORK_DIR" || {
+        echo "Error: Failed to create work directory at $WORK_DIR" >&2
+        echo "Check your permissions." >&2
+        exit 1
+    }
+    
+    # Detect workflow (currently always OpenSpec)
+    local workflow=$(detect_workflow)
+    
+    # Generate work ID (date-based)
+    local work_id="$(date +%Y-%m-%d)-${name}"
+    local work_path="$WORK_DIR/$work_id"
+    
+    # Check if already exists
+    if [ -d "$work_path" ]; then
+        log_error "Work '$name' already exists"
+        echo "Use 'adbs show $name' to view it"
+        exit 1
+    fi
+    
+    # Create work directory
+    if ! ensure_dir_safe "$work_path"; then
+        log_error "Failed to create work directory at $work_path"
+        exit 1
+    fi
+    
+    # Check if AI generation requested
+    if [ "$ai_generate" = "true" ] || [ "$ai_generate" = "--ai-generate" ]; then
+        # Use workflow generator
+        if [ -f "$WORKFLOW_GENERATOR" ]; then
+            if ! generate_workflow "$name" "$work_path"; then
+                echo "Error: Workflow generation failed"
+                # Clean up incomplete work directory
+                rm -rf "$work_path"
+                exit 1
+            fi
+            
+            echo ""
+            echo "Created work: $name"
+            echo "Location: $work_path"
+            echo ""
+            echo "Current state: PLANNING"
+            echo "Next step: Review generated workflow"
+            echo ""
+            echo "Commands:"
+            echo "  adbs show $name              # View proposal"
+            echo "  adbs workflow $name          # View workflow status"
+            echo "  adbs progress $name          # Check if ready to advance"
+            echo "  adbs advance $name           # Move to next state"
+            return 0
+        else
+            echo "Warning: Workflow generator not found, using simple mode"
+            ai_generate="false"
+        fi
+    fi
+    
+    # If not AI-generated, create simple proposal
+    if [ "$ai_generate" = "false" ]; then
+        cat > "$work_path/proposal.md" <<EOF
+# $name
+
+## What are we building?
+
+[Describe what you want to build here]
+
+## Why?
+
+[Explain the motivation or problem this solves]
+
+## How?
+
+[Outline the approach or key steps]
+
+## Done when...
+
+- [ ] [List completion criteria]
+
+EOF
+        
+        echo "✓ Started new work: $name"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Edit the work plan: $work_path/proposal.md"
+        echo "  2. Check status: adbs status"
+        echo "  3. Mark done: adbs done \"$name\""
+    fi
+}
+
+
+# List all active work
+list_work() {
+    local filter="$1"
+    
+    if [ ! -d "$WORK_DIR" ]; then
+        echo "No active work"
+        echo "Start something new: adbs new <name>"
+        return
+    fi
+    
+    local work_count=0
+    
+    echo "Active Work:"
+    echo ""
+    
+    for work_path in "$WORK_DIR"/*; do
+        if [ -d "$work_path" ]; then
+            local work_id=$(basename "$work_path")
+            # Extract name (remove date prefix)
+            local work_name=$(echo "$work_id" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//')
+            
+            # Get first line of proposal as description
+            local desc=""
+            if [ -f "$work_path/proposal.md" ]; then
+                desc=$(grep -m 1 "^# " "$work_path/proposal.md" | sed 's/^# //')
+            fi
+            
+            echo "  • $work_name"
+            if [ -n "$desc" ] && [ "$desc" != "$work_name" ]; then
+                echo "    $desc"
+            fi
+            
+            work_count=$((work_count + 1))
+        fi
+    done
+    
+    if [ $work_count -eq 0 ]; then
+        echo "  (none)"
+        echo ""
+        echo "Start something new: adbs new <name>"
+    fi
+}
+
+# Show work details
+show_work() {
+    local name="$1"
+    
+    if [ -z "$name" ]; then
+        echo "Error: Work name required"
+        echo "Usage: adbs show <name>"
+        exit 1
+    fi
+    
+    # Find work by name
+    local work_path=$(find_work_dir "$name")
+    
+    if [ -z "$work_path" ]; then
+        echo "Error: Work '$name' not found"
+        echo "Use 'adbs list' to see active work"
+        exit 1
+    fi
+    
+    # Show proposal content
+    if [ -f "$work_path/proposal.md" ]; then
+        cat "$work_path/proposal.md"
+    else
+        echo "No details available for '$name'"
+    fi
+}
+
+# Mark work as complete
+complete_work() {
+    local name="$1"
+    
+    # Validate input
+    if [ -z "$name" ]; then
+        log_error "Work name required"
+        echo "Usage: adbs done <name>"
+        exit 1
+    fi
+    
+    # Sanitize name
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ ^/ ]]; then
+        log_error "Invalid work name: contains path traversal characters"
+        exit 1
+    fi
+    
+    # Find work by name
+    local work_path
+    work_path=$(find_work_dir "$name" "$WORK_DIR")
+    
+    if [ -z "$work_path" ] || [ ! -d "$work_path" ]; then
+        echo "Error: Work '$name' not found"
+        echo "Use 'adbs list' to see active work"
+        exit 1
+    fi
+
+    # Validate before completing
+    if [ -f "$VALIDATOR" ]; then
+        source "$VALIDATOR"
+        if ! validate_completion "$work_path"; then
+            echo "Use 'adbs done $name --force' to bypass."
+            if [ "${2:-}" != "--force" ]; then
+                exit 1
+            fi
+        fi
+    fi
+    
+    # Ensure archive directory exists
+    mkdir -p "$ARCHIVE_DIR" || {
+        echo "Error: Failed to create archive directory at $ARCHIVE_DIR" >&2
+        exit 1
+    }
+    
+    # Move to archive
+    local work_id=$(basename "$work_path")
+    local archive_path="$ARCHIVE_DIR/$work_id"
+    
+    # Handle collision (if work with same name completed today)
+    if [ -d "$archive_path" ]; then
+        # Append timestamp to make unique
+        local timestamp=$(date +%H%M%S)
+        archive_path="${archive_path}_${timestamp}"
+    fi
+    
+    mv "$work_path" "$archive_path"
+    
+    echo "✓ Completed: $name"
+    echo ""
+    echo "Archived to: $archive_path"
+}
+
+# Show status of all work
+show_status() {
+    echo "ADbS Status"
+    echo "==========="
+    echo ""
+    
+    # Count active work using shell globbing (more efficient than find)
+    local active_count=0
+    if [ -d "$WORK_DIR" ]; then
+        for dir in "$WORK_DIR"/*; do
+            [ -d "$dir" ] && active_count=$((active_count + 1))
+        done
+    fi
+    
+    # Count archived work using shell globbing
+    local archive_count=0
+    if [ -d "$ARCHIVE_DIR" ]; then
+        for dir in "$ARCHIVE_DIR"/*; do
+            [ -d "$dir" ] && archive_count=$((archive_count + 1))
+        done
+    fi
+    
+    echo "Active work: $active_count"
+    echo "Completed: $archive_count"
+    echo ""
+    
+    if [ $active_count -gt 0 ]; then
+        list_work
+    else
+        echo "No active work"
+        echo "Start something new: adbs new <name>"
+    fi
+}
+
+# Export context for LLM
+export_context() {
+    local name="$1"
+    
+     if [ -z "$name" ]; then
+        # Default to most recent work if no name provided
+        if [ -d "$WORK_DIR" ]; then
+            local recent
+            recent=$(ls -td "$WORK_DIR"/* 2>/dev/null | head -1)
+            if [ -n "$recent" ] && [ -d "$recent" ]; then
+                name=$(basename "$recent" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//')
+            fi
+        fi
+    fi
+    
+    if [ -z "$name" ]; then
+        log_error "Work name required"
+        exit 1
+    fi
+    
+    # Sanitize name
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ ^/ ]]; then
+        log_error "Invalid work name: contains path traversal characters"
+        exit 1
+    fi
+
+    local work_path
+    work_path=$(find_work_dir "$name" "$WORK_DIR")
+    if [ -z "$work_path" ] || [ ! -d "$work_path" ]; then
+        echo "Error: Work '$name' not found"
+        exit 1
+    fi
+    
+    echo "# Context: $name"
+    echo ""
+    
+    if [ -f "$work_path/proposal.md" ]; then
+        echo "## Proposal"
+        cat "$work_path/proposal.md"
+        echo ""
+    fi
+    
+    if [ -f "$work_path/tasks.md" ]; then
+        echo "## Status"
+        cat "$work_path/tasks.md"
+        echo ""
+    fi
+    
+    # Check for memory items (files modified recently in this context? - Future todo)
+}
+
+# Main command handler
+case "${1:-}" in
+    create|new)
+        shift
+        create_work "$@"
+        ;;
+    list)
+        shift
+        list_work "$@"
+        ;;
+    show)
+        shift
+        show_work "$@"
+        ;;
+    context)
+        shift
+        export_context "$@"
+        ;;
+    complete|done)
+        shift
+        complete_work "$@"
+        ;;
+    status)
+        show_status
+        ;;
+    *)
+        echo "Unknown work command: ${1:-}"
+        echo "Usage: work_manager.sh {create|list|show|complete|status}"
+        exit 1
+        ;;
+esac

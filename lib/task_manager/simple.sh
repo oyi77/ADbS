@@ -2,15 +2,31 @@
 # Simple JSON-based task manager (pure shell implementation)
 # Alternative to Beads when Go dependency is not available
 
-set -e
+set -euo pipefail
+
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+if [ -f "$PROJECT_ROOT/lib/core/common.sh" ]; then
+    source "$PROJECT_ROOT/lib/core/common.sh"
+fi
+if [ -f "$PROJECT_ROOT/lib/utils.sh" ]; then
+    source "$PROJECT_ROOT/lib/utils.sh"
+fi
 
 TASKS_FILE="${WORKFLOW_ENFORCER_DIR:-.workflow-enforcer}/tasks.json"
 JQ_CMD=""
 
+# Check dependencies once
+HAS_JQ=0
+HAS_PYTHON3=0
+if command -v jq &> /dev/null; then HAS_JQ=1; fi
+if command -v python3 &> /dev/null; then HAS_PYTHON3=1; fi
+
 # Check if jq is available, otherwise use awk/sed
-if command -v jq &> /dev/null; then
+if [ "$HAS_JQ" -eq 1 ]; then
     JQ_CMD="jq"
-elif command -v python3 &> /dev/null; then
+elif [ "$HAS_PYTHON3" -eq 1 ]; then
     JQ_CMD="python3"
 else
     JQ_CMD="awk"
@@ -24,17 +40,40 @@ init_tasks() {
     fi
     
     if [ ! -f "$TASKS_FILE" ]; then
-        echo '{"tasks":[],"next_id":1}' > "$TASKS_FILE"
+        echo '{"tasks":[],"next_id":1}' > "$TASKS_FILE" || {
+            echo "Error: Failed to create tasks file at $TASKS_FILE" >&2
+            return 1
+        }
     fi
     # Ensure tasks have all new fields
     if [ "$JQ_CMD" = "jq" ]; then
-        jq '.tasks[] |= (. + {tags: (.tags // []), depends_on: (.depends_on // []), comments: (.comments // [])})' "$TASKS_FILE" > "${TASKS_FILE}.tmp" 2>/dev/null && mv "${TASKS_FILE}.tmp" "$TASKS_FILE" || true
+        local temp_file="${TASKS_FILE}.tmp.$$"
+        if jq '.tasks[] |= (. + {tags: (.tags // []), depends_on: (.depends_on // []), comments: (.comments // [])})' "$TASKS_FILE" > "$temp_file" 2>&1; then
+            # Validate JSON before moving
+            if jq . "$temp_file" > /dev/null 2>&1; then
+                mv "$temp_file" "$TASKS_FILE" || {
+                    rm -f "$temp_file"
+                    echo "Error: Failed to update tasks file" >&2
+                    return 1
+                }
+            else
+                rm -f "$temp_file"
+                echo "Error: Generated invalid JSON" >&2
+                return 1
+            fi
+        else
+            rm -f "$temp_file"
+            echo "Warning: Failed to update task fields, continuing with existing format" >&2
+        fi
     fi
 }
 
 # Generate a short random ID (similar to beads format)
 generate_id() {
-    if command -v python3 &> /dev/null; then
+    if [ -e /dev/urandom ] && command -v md5sum >/dev/null; then
+        # Fast generation using system random source (Linux/macOS)
+        head -c 10 /dev/urandom | md5sum | cut -c 1-6
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 -c "import uuid; print(str(uuid.uuid4())[:6])"
     else
         # Fallback
@@ -388,10 +427,33 @@ PYTHON
 delete_task() {
     local id="$1"
     
+    if [ -z "$id" ]; then
+        log_error "Task ID required"
+        return 1
+    fi
+    
     init_tasks
     
     if [ "$JQ_CMD" = "jq" ]; then
-        jq --arg id "$id" 'del(.tasks[] | select(.id == $id))' "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
+        local temp_file="${TASKS_FILE}.tmp.$$"
+        if ! jq --arg id "$id" 'del(.tasks[] | select(.id == $id))' "$TASKS_FILE" > "$temp_file" 2>&1; then
+            rm -f "$temp_file"
+            log_error "Failed to delete task from JSON"
+            return 1
+        fi
+        
+        # Validate JSON before moving
+        if jq . "$temp_file" > /dev/null 2>&1; then
+            mv "$temp_file" "$TASKS_FILE" || {
+                rm -f "$temp_file"
+                log_error "Failed to save tasks file"
+                return 1
+            }
+        else
+            rm -f "$temp_file"
+            log_error "Generated invalid JSON"
+            return 1
+        fi
     elif [ "$JQ_CMD" = "python3" ]; then
         python3 <<PYTHON
 import json
@@ -413,27 +475,83 @@ PYTHON
 # Export tasks
 export_tasks() {
     local output_file="${1:-tasks_export.json}"
-    init_tasks
-    cp "$TASKS_FILE" "$output_file"
+    
+    if [ -z "$output_file" ]; then
+        log_error "Output file path required"
+        return 1
+    fi
+    
+    # Validate path
+    if ! validate_path "$output_file"; then
+        log_error "Invalid output file path: $output_file"
+        return 1
+    fi
+    
+    init_tasks || return 1
+    
+    if [ ! -f "$TASKS_FILE" ]; then
+        log_error "Tasks file not found: $TASKS_FILE"
+        return 1
+    fi
+    
+    if ! cp "$TASKS_FILE" "$output_file" 2>&1; then
+        log_error "Failed to export tasks to $output_file"
+        return 1
+    fi
+    
     echo "Tasks exported to $output_file"
 }
 
 # Import tasks
 import_tasks() {
     local input_file="${1:-tasks_export.json}"
-    if [ -f "$input_file" ]; then
-        cp "$input_file" "$TASKS_FILE"
-        echo "Tasks imported from $input_file"
-    else
-        echo "Error: File $input_file not found"
+    
+    if [ -z "$input_file" ]; then
+        log_error "Input file path required"
         return 1
     fi
+    
+    # Validate path
+    if ! validate_path "$input_file"; then
+        log_error "Invalid input file path: $input_file"
+        return 1
+    fi
+    
+    if [ ! -f "$input_file" ]; then
+        log_error "File not found: $input_file"
+        return 1
+    fi
+    
+    if [ ! -r "$input_file" ]; then
+        log_error "File not readable: $input_file"
+        return 1
+    fi
+    
+    # Validate JSON before importing
+    if command_exists jq; then
+        if ! jq . "$input_file" > /dev/null 2>&1; then
+            log_error "Invalid JSON in import file: $input_file"
+            return 1
+        fi
+    elif command_exists python3; then
+        if ! python3 -m json.tool "$input_file" > /dev/null 2>&1; then
+            log_error "Invalid JSON in import file: $input_file"
+            return 1
+        fi
+    fi
+    
+    if ! cp "$input_file" "$TASKS_FILE" 2>&1; then
+        log_error "Failed to import tasks from $input_file"
+        return 1
+    fi
+    
+    echo "Tasks imported from $input_file"
 }
 
 # Print tasks tree
 print_tree() {
     init_tasks
-    if command -v python3 &> /dev/null; then
+    if [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 import sys
@@ -498,7 +616,7 @@ PYTHON
 # Print tasks report (markdown)
 print_report() {
     init_tasks
-    if command -v python3 &> /dev/null; then
+    if [ "$HAS_PYTHON3" -eq 1 ]; then
         python3 <<PYTHON
 import json
 import sys

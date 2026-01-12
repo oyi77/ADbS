@@ -1,0 +1,36 @@
+#!/bin/bash
+# Wrapper for ADbS Memory Engine (Python)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PYTHON_SCRIPT="$PROJECT_ROOT/lib/memory.py"
+
+# Find python
+if command -v python3 &>/dev/null; then
+    PYTHON_CMD="python3"
+elif command -v python &>/dev/null; then
+    PYTHON_CMD="python"
+else
+    # Fallback Mode: Native Grep
+    CMD="$1"
+    
+    if [ "$CMD" = "query" ]; then
+        echo "[WARN] Python not found. Using simple native search." >&2
+        TERM="$2"
+        # Simple recursive grep returning JSON-like output
+        grep -r "$TERM" . --exclude-dir={.git,.adbs,node_modules} --binary-files=without-match | head -n 20 | \
+        while IFS=: read -r file line; do
+            # Poor man's JSON creation
+            echo "{\"path\": \"$file\", \"preview\": \"$(echo $line | sed 's/"/\\"/g')\", \"type\": \"native-grep\"}"
+        done
+        # Note: Output won't be a valid JSON array, just a stream of objects. 
+        # But readable enough for CLI.
+    elif [ "$CMD" = "index" ]; then
+        echo "[WARN] Python not found. Indexing is not required for native search." >&2
+    else
+        echo "[WARN] Python not found. Only 'query' works in native fallback mode." >&2
+    fi
+    exit 0
+fi
+
+"$PYTHON_CMD" "$PYTHON_SCRIPT" "$@"

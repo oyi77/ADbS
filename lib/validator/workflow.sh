@@ -16,6 +16,12 @@ DESIGNS_DIR="$SDD_DIR/designs"
 TASKS_DIR="$SDD_DIR/tasks"
 PLAN_MANAGER="$PROJECT_ROOT/lib/plan_manager.sh"
 
+# Check dependencies once
+HAS_JQ=0
+HAS_PYTHON3=0
+if command -v jq &> /dev/null; then HAS_JQ=1; fi
+if command -v python3 &> /dev/null; then HAS_PYTHON3=1; fi
+
 # Initialize workflow directory
 init_workflow() {
     mkdir -p "$SDD_DIR/plans" "$SDD_DIR/requirements" "$SDD_DIR/designs" "$SDD_DIR/tasks"
@@ -25,7 +31,9 @@ init_workflow() {
     fi
     # Initialize plan index if needed
     if [ -f "$PLAN_MANAGER" ]; then
-        "$PLAN_MANAGER" generate > /dev/null 2>&1 || true
+        if ! "$PLAN_MANAGER" generate > /dev/null 2>&1; then
+            log_warning "Failed to generate plan index, continuing anyway"
+        fi
     fi
 }
 
@@ -79,12 +87,27 @@ check_file_contains() {
     shift
     local required_strings=("$@")
     
+    if [ -z "$file" ]; then
+        return 1
+    fi
+    
     if [ ! -f "$file" ]; then
         return 1
     fi
     
+    if [ ! -r "$file" ]; then
+        return 1
+    fi
+    
+    if [ ${#required_strings[@]} -eq 0 ]; then
+        return 0
+    fi
+    
     for str in "${required_strings[@]}"; do
-        if ! grep -qi "$str" "$file" 2>/dev/null; then
+        if [ -z "$str" ]; then
+            continue
+        fi
+        if ! grep -qi "$str" "$file" 2>&1; then
             return 1
         fi
     done
@@ -268,13 +291,13 @@ validate_assign() {
     # Check if using beads or simple task manager
     if [ -f "$tasks_json" ]; then
         # Check if tasks.json has at least one task
-        if command -v jq &> /dev/null; then
+        if [ "$HAS_JQ" -eq 1 ]; then
             local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
             if [ "$task_count" -lt 1 ]; then
                 echo "Error: At least one task must be created in task manager"
                 return 1
             fi
-        elif command -v python3 &> /dev/null; then
+        elif [ "$HAS_PYTHON3" -eq 1 ]; then
             local task_count=$(python3 -c "import json; data=json.load(open('$tasks_json')); print(len(data.get('tasks', [])))" 2>/dev/null || echo "0")
             if [ "$task_count" -lt 1 ]; then
                 echo "Error: At least one task must be created in task manager"
@@ -296,9 +319,45 @@ validate_assign() {
     return 0
 }
 
-# Validate execution stage (always passes - execution is ongoing)
+# Validate execution stage
 validate_execution() {
-    echo "Execution stage - validation always passes (work in progress)"
+    local tasks_json="$WORKFLOW_DIR/tasks.json"
+
+    if [ ! -f "$tasks_json" ]; then
+        echo "Error: Task manager file not found ($tasks_json). Execution requires active tasks."
+        return 1
+    fi
+
+    if [ "$HAS_JQ" -eq 1 ]; then
+        local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
+        if [ "$task_count" -lt 1 ]; then
+            echo "Error: No tasks found in task manager"
+            return 1
+        fi
+
+        local completed_count=$(jq '[.tasks[] | select(.status == "completed")] | length' "$tasks_json" 2>/dev/null || echo "0")
+        local progress_count=$(jq '[.tasks[] | select(.status == "in_progress")] | length' "$tasks_json" 2>/dev/null || echo "0")
+
+        echo "Execution stage validated ($task_count tasks: $progress_count in progress, $completed_count completed)"
+
+    elif [ "$HAS_PYTHON3" -eq 1 ]; then
+        local task_count=$(python3 -c "import json; data=json.load(open('$tasks_json')); print(len(data.get('tasks', [])))" 2>/dev/null || echo "0")
+        if [ "$task_count" -lt 1 ]; then
+            echo "Error: No tasks found in task manager"
+            return 1
+        fi
+
+        echo "Execution stage validated ($task_count tasks found)"
+
+    else
+        # Basic check
+        if ! grep -q "\"id\"" "$tasks_json" 2>/dev/null; then
+            echo "Error: No tasks found in task manager"
+            return 1
+        fi
+        echo "Execution stage validated"
+    fi
+
     return 0
 }
 

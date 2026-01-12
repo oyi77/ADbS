@@ -1,191 +1,443 @@
 #!/bin/bash
-# Main CLI tool for workflow enforcement
+# ADbS - AI Development Assistant
+# Main CLI entry point
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Set paths
-export WORKFLOW_ENFORCER_DIR="${WORKFLOW_ENFORCER_DIR:-$PROJECT_ROOT/.workflow-enforcer}"
-VALIDATOR="$PROJECT_ROOT/lib/validator/workflow.sh"
-TASK_MANAGER="$PROJECT_ROOT/lib/task_manager/beads_wrapper.sh"
-PLATFORM_DETECTOR="$PROJECT_ROOT/lib/platform_detector.sh"
-OPENSPEC="$PROJECT_ROOT/lib/openspec.sh"
+# Determine Installation Root (where scripts are)
+# If running from bin/, root is ..
+INSTALL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source common utilities
+if [ -f "$INSTALL_ROOT/lib/core/common.sh" ]; then
+    source "$INSTALL_ROOT/lib/core/common.sh"
+fi
+if [ -f "$INSTALL_ROOT/lib/utils.sh" ]; then
+    source "$INSTALL_ROOT/lib/utils.sh"
+fi
+
+# Determine Project Root (where .adbs data is)
+# Default to current directory or ADBS_PROJECT_ROOT if set
+if [ -n "$ADBS_PROJECT_ROOT" ]; then
+    PROJECT_ROOT="$ADBS_PROJECT_ROOT"
+else
+    # Fallback: assume current directory is project root
+    PROJECT_ROOT="$(pwd)"
+fi
+
+# Set ADBS_DIR to project's .adbs directory
+export ADBS_DIR="$PROJECT_ROOT/.adbs"
+
+# Internal components (libs relative to INSTALL_ROOT)
+WORK_MANAGER="$INSTALL_ROOT/lib/internal/work_manager.sh"
+TASK_BACKEND="$INSTALL_ROOT/lib/internal/task_backend.sh"
+MIGRATOR="$INSTALL_ROOT/lib/internal/migrator.sh"
+STATE_MACHINE="$INSTALL_ROOT/lib/internal/state_machine.sh"
+PLATFORM_DETECTOR="$INSTALL_ROOT/lib/platform_detector.sh"
+RULES_GENERATOR="$INSTALL_ROOT/lib/rules_generator.sh"
+MEMORY="$INSTALL_ROOT/lib/internal/memory.sh"
+DASHBOARD="$INSTALL_ROOT/lib/internal/dashboard.sh"
+
+# Ensure internal directory exists
+mkdir -p "$PROJECT_ROOT/lib/internal"
 
 # Ensure scripts are executable
-chmod +x "$VALIDATOR" "$TASK_MANAGER" "$PLATFORM_DETECTOR" "$OPENSPEC" 2>/dev/null || true
+if ! chmod +x "$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" "$DASHBOARD" 2>/dev/null; then
+    # chmod failed - likely on Windows or permission issue
+    # Check if scripts are already executable or if we're on Windows
+    if [ ! -x "$WORK_MANAGER" ] && [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
+        echo "Warning: Could not make scripts executable. You may need to run:"
+        echo "  chmod +x lib/**/*.sh bin/*"
+    fi
+fi
+
+# Check if migration is needed on first run
+check_migration() {
+    if [ -d ".openspec" ] || [ -d ".sdd" ] || [ -d ".workflow-enforcer" ]; then
+        echo ""
+        echo "⚠️  Old ADbS structure detected"
+        echo ""
+        if [ -f "$MIGRATOR" ]; then
+            if "$MIGRATOR" check >/dev/null 2>&1; then
+                if ! "$MIGRATOR" auto; then
+                    log_error "Migration failed, but continuing"
+                fi
+            else
+                log_warning "Migration check failed, skipping auto-migration"
+            fi
+        else
+            log_warning "Migrator not found at $MIGRATOR"
+        fi
+        echo ""
+    fi
+}
+
+# Helper: Find work directory by name (exact or date-prefixed)
+# Uses common.sh implementation
+find_work_dir() {
+    local name="$1"
+    local work_dir="${ADBS_DIR:-.adbs}/work"
+    find_work_dir "$name" "$work_dir"
+}
 
 # Main command handler
 case "${1:-}" in
+    new|start)
+        # Start new work
+        check_migration
+        shift
+        "$WORK_MANAGER" create "$@"
+        ;;
+    
     status)
-        "$VALIDATOR" status
+        # Show current status
+        check_migration
+        "$WORK_MANAGER" status
         ;;
-    validate)
-        "$VALIDATOR" validate
-        ;;
-    next)
-        "$VALIDATOR" next
-        ;;
-    current)
-        "$VALIDATOR" current
-        ;;
-    set)
+    
+    done|complete|finish)
+        # Mark work as complete
+        check_migration
         shift
-        "$VALIDATOR" set "$@"
+        "$WORK_MANAGER" complete "$@"
         ;;
-    task)
+    
+    rules)
+        # Generate rules
+        check_migration
         shift
-        "$TASK_MANAGER" "$@"
+        "$RULES_GENERATOR" "$@"
         ;;
-    platform)
+    
+    memory)
+        # Handle memory commands
+        # check_migration # Memory might be used before migration? Maybe safe to check.
         shift
-        case "${1:-}" in
-            detect)
-                "$PLATFORM_DETECTOR" detect
-                ;;
-            rules-dir)
-                "$PLATFORM_DETECTOR" rules-dir
-                ;;
-            rules-file)
-                "$PLATFORM_DETECTOR" rules-file
-                ;;
-            *)
-                echo "Usage: adbs platform {detect|detect-all|rules-dir|rules-dirs|rules-file}"
-                echo "       (or: workflow-enforcer platform ...)"
-                exit 1
-                ;;
-        esac
+        "$MEMORY" "$@"
         ;;
-    init)
-        # Initialize workflow
-        mkdir -p "$WORKFLOW_ENFORCER_DIR"
-        mkdir -p ".sdd/plans" ".sdd/requirements" ".sdd/designs" ".sdd/tasks"
-        if [ ! -f "$WORKFLOW_ENFORCER_DIR/current-stage" ]; then
-            echo "explore" > "$WORKFLOW_ENFORCER_DIR/current-stage"
-            echo "Initialized workflow - starting at 'explore' stage"
+    
+    dashboard)
+        # Launch dashboard
+        shift
+        "$DASHBOARD" "$@"
+        ;;
+    
+    show)
+        # Show work details
+        check_migration
+        shift
+        "$WORK_MANAGER" show "$@"
+        ;;
+   
+    context)
+        # Export context for LLM
+        shift
+        "$WORK_MANAGER" context "$@"
+        ;;
+    
+    list)
+        # List all work and tasks
+        check_migration
+        shift
+        
+        # Determine what to list
+        if [ "${1:-}" = "--tasks" ] || [ "${1:-}" = "-t" ]; then
+            shift
+            "$TASK_BACKEND" list "$@"
         else
-            echo "Workflow already initialized"
-            "$VALIDATOR" status
+            # List work by default
+            "$WORK_MANAGER" list "$@"
+            
+            # Also show tasks if any
+            echo ""
+            echo "Tasks:"
+            "$TASK_BACKEND" list "$@" 2>/dev/null || echo "  (none)"
         fi
         ;;
-    install-hooks)
-        # Install git hooks
-        if [ ! -d ".git" ]; then
-            echo "Error: Not a git repository"
+    
+    todo|task)
+        # Add or manage tasks
+        check_migration
+        shift
+        
+        # If no subcommand or first arg is description, assume create
+        if [ $# -eq 0 ] || ! is_task_subcommand "${1:-}"; then
+            "$TASK_BACKEND" create "$@"
+        else
+            "$TASK_BACKEND" "$@"
+        fi
+        ;;
+    
+    update)
+        # Update task or work
+        check_migration
+        shift
+        "$TASK_BACKEND" update "$@"
+        ;;
+    
+    setup|init)
+        # Setup ADbS
+        echo "Setting up ADbS..."
+        echo ""
+        
+        # Create directory structure
+        mkdir -p ".adbs/work"
+        mkdir -p ".adbs/archive"
+        mkdir -p ".adbs/internal"
+        
+        # Detect platform and generate rules
+        echo "Detecting IDE..."
+        platform=$("$PLATFORM_DETECTOR" detect 2>/dev/null || echo "unknown")
+        echo "  Detected: $platform"
+        echo ""
+        
+        # Generate rules
+        echo "Generating IDE rules..."
+        "$RULES_GENERATOR" "$platform" 2>/dev/null || true
+        echo "  ✓ Rules generated"
+        echo ""
+        
+        # Check for migration
+        if [ -d ".openspec" ] || [ -d ".sdd" ]; then
+            "$MIGRATOR" run
+        fi
+        
+        echo "✓ ADbS setup complete!"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Start new work: adbs new <name>"
+        echo "  2. Add a task: adbs todo <description>"
+        echo "  3. Check status: adbs status"
+        ;;
+    
+    check|validate)
+        # Validate current work
+        check_migration
+        echo "Checking work..."
+        
+        # Count active work
+        active_count=0
+        if [ -d ".adbs/work" ]; then
+            active_count=$(find ".adbs/work" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+        fi
+        
+        if [ $active_count -eq 0 ]; then
+            echo "  ⚠️  No active work"
+            echo ""
+            echo "Start something: adbs new <name>"
+        else
+            echo "  ✓ $active_count active work item(s)"
+            echo ""
+            "$WORK_MANAGER" list
+        fi
+        ;;
+    
+    workflow)
+        # Show workflow status for work item
+        check_migration
+        shift
+        work_name="$1"
+        
+        if [ -z "$work_name" ]; then
+            echo "Error: Work name required"
+            echo "Usage: adbs workflow <name>"
             exit 1
         fi
         
-        HOOKS_DIR=".git/hooks"
-        mkdir -p "$HOOKS_DIR"
+        # Find work directory
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
         
-        PRE_COMMIT_TEMPLATE="$PROJECT_ROOT/templates/hooks/pre-commit"
-        if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
-            cp "$PRE_COMMIT_TEMPLATE" "$HOOKS_DIR/pre-commit"
-            chmod +x "$HOOKS_DIR/pre-commit"
-            echo "Installed pre-commit hook"
-        else
-            echo "Error: Pre-commit hook template not found at $PRE_COMMIT_TEMPLATE"
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
+            echo "Error: Work '$work_name' not found"
             exit 1
         fi
+        
+        "$STATE_MACHINE" show "$work_dir"
         ;;
+    
+    progress)
+        # Check if ready to advance to next state
+        check_migration
+        shift
+        work_name="$1"
+        
+        if [ -z "$work_name" ]; then
+            echo "Error: Work name required"
+            echo "Usage: adbs progress <name>"
+            exit 1
+        fi
+        
+        # Find work directory
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
+        
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
+            echo "Error: Work '$work_name' not found"
+            exit 1
+        fi
+        
+        "$STATE_MACHINE" check "$work_dir"
+        ;;
+    
+    advance)
+        # Advance to next state
+        check_migration
+        shift
+        work_name="$1"
+        
+        if [ -z "$work_name" ]; then
+            echo "Error: Work name required"
+            echo "Usage: adbs advance <name>"
+            exit 1
+        fi
+        
+        # Find work directory
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
+        
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
+            echo "Error: Work '$work_name' not found"
+            exit 1
+        fi
+        
+        "$STATE_MACHINE" advance "$work_dir"
+        ;;
+    
+    approve)
+        # Approve current state and advance
+        check_migration
+        shift
+        work_name="$1"
+        
+        if [ -z "$work_name" ]; then
+            echo "Error: Work name required"
+            echo "Usage: adbs approve <name>"
+            exit 1
+        fi
+        
+        # Find work directory
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
+        
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
+            echo "Error: Work '$work_name' not found"
+            exit 1
+        fi
+        
+        echo "✓ Approved"
+        "$STATE_MACHINE" advance "$work_dir"
+        ;;
+    
+    block)
+        # Block state with reason
+        check_migration
+        shift
+        work_name="$1"
+        shift
+        reason="$*"
+        
+        if [ -z "$work_name" ]; then
+            echo "Error: Work name required"
+            echo "Usage: adbs block <name> <reason>"
+            exit 1
+        fi
+        
+        # Find work directory
+        work_dir=$(find_work_dir "$work_name" "${ADBS_DIR:-.adbs}/work")
+        
+        if [ -z "$work_dir" ] || [ ! -d "$work_dir" ]; then
+            echo "Error: Work '$work_name' not found"
+            exit 1
+        fi
+        
+        "$STATE_MACHINE" block "$work_dir" "$reason"
+        ;;
+    
     version|--version|-v)
         if [ -f "$PROJECT_ROOT/VERSION" ]; then
-            cat "$PROJECT_ROOT/VERSION"
+            echo "ADbS version $(cat "$PROJECT_ROOT/VERSION")"
         else
-            echo "unknown"
+            echo "ADbS version unknown"
         fi
         ;;
-    update)
-        # Update ADbS
+    
+    update-adbs)
+        # Update ADbS itself
         echo "Updating ADbS..."
         if [ -d "$PROJECT_ROOT/.git" ]; then
-            cd "$PROJECT_ROOT" && git pull && echo "Updated successfully."
+            cd "$PROJECT_ROOT" && git pull && echo "✓ Updated successfully"
         else
-            echo "Error: Not a git repository. Cannot auto-update."
-            echo "Please reinstall using the installation command."
+            echo "Error: Cannot auto-update"
+            echo "Please reinstall using: curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/install.sh | bash"
             exit 1
         fi
         ;;
-    openspec)
-        shift
-        "$OPENSPEC" "$@"
-        ;;
-    propose)
-        shift
-        "$OPENSPEC" propose "$@"
-        ;;
-    archive)
-        shift
-        "$OPENSPEC" archive "$@"
-        ;;
-    specs)
-        shift
-        "$OPENSPEC" specs "$@"
-        ;;
-    ui)
-        # Run interactive UI
-        "$PROJECT_ROOT/lib/ui.sh"
-        ;;
+    
     help|--help|-h)
         cat <<EOF
-ADbS - Ai Dont be Stupid, please!
+ADbS - AI Don't Be Stupid
 
-Usage: workflow-enforcer <command> [args]
-(or use 'adbs' as a shorter alias)
+Keep your AI focused. Stay organized. Ship faster.
 
-Commands:
-  status              Show current workflow status
-  validate            Validate current stage
-  next                Advance to next stage (if validated)
-  current             Get current stage name
-  set <stage>         Set stage manually (use with caution)
+Usage: adbs <command> [options]
+
+Work Management:
+  new <name>              Start new feature or fix
+  new <name> --ai-generate  Auto-generate complete workflow
+  status                  Show current work
+  done <name>             Mark work as complete
+  show <name>             Show work details
+  list                    List all work and tasks
   
-  task <cmd>          Task management commands
-    create <desc>     Create a new task
-    list              List all tasks
-    update <id>       Update a task
-    get <id>          Get task details
-    delete <id>       Delete a task
-    export [file]     Export tasks to JSON
-    import [file]     Import tasks from JSON
+AI Orchestration:
+  workflow <name>         Show workflow state (planning → implementing → done)
+  progress <name>         Check if ready to advance to next state
+  advance <name>          Move to next state (with validation)
+  approve <name>          Approve current state and advance
+  block <name> <reason>   Block state when issues found
   
-  platform <cmd>     Platform detection
-    detect            Detect current IDE/platform
-    rules-dir         Get rules directory for platform
-    rules-file        Get rules filename
+Task Management:
+  todo <description>      Add a task or reminder
+  update <id> <field>     Update a task
   
-  init                Initialize workflow in current directory
-  install-hooks       Install git hooks for workflow enforcement
-  update              Update ADbS to the latest version
-  
-  # OpenSpec Workflow
-  propose <name>      Create a new change proposal
-  archive <id>        Archive a completed change
-  specs               List system specifications
-  
-  openspec            Advanced OpenSpec commands (init, list)
-  version             Show current version
-  ui                  Run interactive UI
-  help                Show this help message
+Setup & Maintenance:
+  setup                   Initialize ADbS in current project
+  check                   Validate current work
+  version                 Show ADbS version
+  help                    Show this help message
 
 Examples:
-  adbs init
+  # Simple workflow
+  adbs new "user authentication"
   adbs status
-  adbs validate
-  adbs next
-  adbs task create "Implement feature X" --priority high
-  adbs task list
+  adbs todo "Write tests for login"
+  adbs done "user authentication"
+  
+  # AI-powered workflow
+  adbs new "Add OAuth2 with JWT tokens" --ai-generate
+  adbs workflow "OAuth2"
+  adbs progress "OAuth2"
+  adbs advance "OAuth2"
 
-Note: 'adbs' is a shorter alias for 'workflow-enforcer'
+Options:
+  --help, -h              Show help for a command
+  --version, -v           Show version
+  --ai-generate           Auto-generate complete workflow (with new command)
 
-For more information, see README.md
+For more information, visit: https://github.com/oyi77/ADbS
 EOF
         ;;
+    
     *)
-        echo "Unknown command: ${1:-}"
-        echo "Run 'adbs help' or 'workflow-enforcer help' for usage information"
-        exit 1
+        if [ -z "${1:-}" ]; then
+            # No command, show status
+            check_migration
+            "$WORK_MANAGER" status
+        else
+            echo "Unknown command: $1"
+            echo ""
+            echo "Run 'adbs help' for usage information"
+            exit 1
+        fi
         ;;
 esac
 

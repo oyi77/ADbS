@@ -89,3 +89,20 @@ teardown() {
     run bash "$PROJECT_ROOT/lib/openspec.sh" invalid-command
     [ "$status" -ne 0 ]
 }
+
+@test "openspec_setupFixture_whenCalled_createsProjectStructure" {
+    local project_dir=$(setup_openspec_fixture)
+    
+    [ -d "$project_dir" ]
+    assert_dir_exists "$project_dir/openspec"
+    assert_file_exists "$project_dir/openspec/project.md"
+}
+
+@test "openspec_validate_whenProposalMissing_returnsError" {
+    local project_dir=$(setup_openspec_fixture)
+    cd "$project_dir"
+    
+    run bash "$PROJECT_ROOT/lib/openspec.sh" validate "nonexistent-proposal"
+    # Should fail for missing proposal
+    [ "$status" -ne 0 ] || [ -n "$output" ]
+}

@@ -56,13 +56,25 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(startDisposable);
     context.subscriptions.push(nextDisposable);
 
-    updateStatusBarItem();
+    const rootPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (rootPath) {
+        const watcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(rootPath, '.workflow-enforcer/current-stage')
+        );
+        watcher.onDidChange(() => updateStatusBarItem(rootPath));
+        watcher.onDidCreate(() => updateStatusBarItem(rootPath));
+        watcher.onDidDelete(() => updateStatusBarItem(rootPath));
+        context.subscriptions.push(watcher);
+
+        updateStatusBarItem(rootPath);
+    } else {
+        updateStatusBarItem();
+    }
 }
 
 function runAdbsCommand(args: string, cwd: string) {
-    // Assuming 'adbs' is in PATH or using local bin
-    // For development, we might point to the local bin script
-    const cmd = `bash lib/validator/workflow.sh ${args}`; // Fallback/Dev mode
+    // Assumes 'adbs' is in PATH (installed via install.sh)
+    const cmd = `adbs ${args}`;
 
     vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
@@ -85,14 +97,21 @@ function runAdbsCommand(args: string, cwd: string) {
 }
 
 function updateStatusBarItem(cwd?: string) {
-    // In a real impl, read .workflow-enforcer/current-stage
+    if (!cwd) {
+        cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    }
+
     if (cwd) {
         const stageFile = path.join(cwd, '.workflow-enforcer', 'current-stage');
         if (fs.existsSync(stageFile)) {
-            const stage = fs.readFileSync(stageFile, 'utf8').trim();
-            myStatusBarItem.text = `$(rocket) ADbS: ${stage}`;
-            myStatusBarItem.show();
-            return;
+            try {
+                const stage = fs.readFileSync(stageFile, 'utf8').trim();
+                myStatusBarItem.text = `$(rocket) ADbS: ${stage}`;
+                myStatusBarItem.show();
+                return;
+            } catch (error) {
+                console.error('Error reading stage file:', error);
+            }
         }
     }
     myStatusBarItem.text = `$(circle-slash) ADbS`;

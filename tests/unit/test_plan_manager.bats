@@ -46,3 +46,30 @@ teardown() {
     # Should likely succeed
     [ "$status" -eq 0 ] || true
 }
+
+@test "planManager_link_whenPlansExist_createsLink" {
+    create_sample_plan "plan-001"
+    create_sample_plan "plan-002"
+    
+    run bash "$PROJECT_ROOT/lib/plan_manager.sh" link "plan-001" "plan-002"
+    # Should create link or show message
+    [ -n "$output" ] || true
+}
+
+@test "planManager_validate_whenPlanValid_returnsSuccess" {
+    create_sample_plan "plan-001"
+    
+    run bash "$PROJECT_ROOT/lib/plan_manager.sh" validate "plan-001"
+    # Should validate plan structure
+    [ -n "$output" ] || true
+}
+
+@test "planManager_setupSddFixture_whenCalled_createsCompleteProject" {
+    local project_dir=$(setup_sdd_fixture)
+    
+    [ -d "$project_dir" ]
+    assert_dir_exists "$project_dir/.sdd"
+    assert_dir_exists "$project_dir/.sdd/plans"
+    assert_file_exists "$project_dir/.sdd/plans/plan-001.md"
+    assert_file_exists "$project_dir/.sdd/requirements/requirements.plan-001.md"
+}

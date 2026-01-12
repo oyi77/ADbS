@@ -53,3 +53,19 @@ teardown() {
     # May or may not have help, just check it doesn't crash
     [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
 }
+
+@test "platform_detector_mockIdeEnv_whenCursorMocked_setsEnvVars" {
+    mock_ide_env "cursor"
+    
+    [ "$MOCK_IDE" = "cursor" ]
+    [ -n "$MOCK_IDE_CONFIG" ]
+}
+
+@test "platform_detector_mockIdeEnv_whenZedMocked_setsEnvVars" {
+    mock_ide_env "zed"
+    
+    [ "$MOCK_IDE" = "zed" ]
+    [ -n "$MOCK_IDE_CONFIG" ]
+    # Zed should be single-file
+    [[ "$MOCK_IDE_CONFIG" == *'"supports_multi_file": false'* ]]
+}
