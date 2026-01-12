@@ -123,48 +123,27 @@ create_task() {
     local id=$(generate_hierarchical_id "$parent")
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%d %H:%M:%S")
     
-    # Parse tags (comma-separated)
-    local tags_array="[]"
-    if [ -n "$tags" ]; then
-        if [ "$JQ_CMD" = "jq" ]; then
-            tags_array=$(echo "$tags" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')
-        elif [ "$JQ_CMD" = "python3" ]; then
-            tags_array=$(python3 -c "import json, sys; print(json.dumps([t.strip() for t in '$tags'.split(',')]))")
-        fi
-    fi
-    
-    # Parse depends_on (comma-separated)
-    local depends_array="[]"
-    if [ -n "$depends_on" ]; then
-        if [ "$JQ_CMD" = "jq" ]; then
-            depends_array=$(echo "$depends_on" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')
-        elif [ "$JQ_CMD" = "python3" ]; then
-            depends_array=$(python3 -c "import json, sys; print(json.dumps([t.strip() for t in '$depends_on'.split(',')]))")
-        fi
-    fi
-    
     if [ "$JQ_CMD" = "jq" ]; then
-        local task_json=$(jq -n \
-            --arg id "$id" \
-            --arg desc "$description" \
-            --arg priority "$priority" \
-            --arg parent "${parent:-null}" \
-            --argjson tags "$tags_array" \
-            --argjson depends "$depends_array" \
-            --arg timestamp "$timestamp" \
-            '{
+        # Optimized single-pass jq execution for array creation and appending
+        jq --arg id "$id" \
+           --arg desc "$description" \
+           --arg priority "$priority" \
+           --arg parent "${parent:-null}" \
+           --arg tags "$tags" \
+           --arg depends "$depends_on" \
+           --arg timestamp "$timestamp" \
+           '.tasks += [{
                 id: $id,
                 description: $desc,
                 status: "todo",
                 priority: $priority,
                 parent: (if $parent == "null" then null else $parent end),
-                depends_on: $depends,
-                tags: $tags,
+                depends_on: ($depends | if length > 0 then split(",") | map(gsub("^\\s+|\\s+$"; "")) else [] end),
+                tags: ($tags | if length > 0 then split(",") | map(gsub("^\\s+|\\s+$"; "")) else [] end),
                 comments: [],
                 created_at: $timestamp,
                 updated_at: $timestamp
-            }')
-        jq --argjson task "$task_json" '.tasks += [$task] | .next_id += 1' "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
+            }] | .next_id += 1' "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
     elif [ "$JQ_CMD" = "python3" ]; then
         python3 <<PYTHON
 import json
