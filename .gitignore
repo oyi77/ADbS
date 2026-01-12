@@ -32,12 +32,10 @@ test-results/
 *.tap
 coverage/
 .bats-cache/
-
 # Temporary files
 tmp/
 temp/
 *.tmp
-
 # Keep .agent and .git
 !.agent/
 !.gitignore
