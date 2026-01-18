@@ -473,38 +473,40 @@ show_status() {
 }
 
 # Main command handler
-case "${1:-}" in
-    validate)
-        validate_current_stage
-        ;;
-    next)
-        advance_stage
-        ;;
-    status)
-        show_status
-        ;;
-    current)
-        get_current_stage
-        ;;
-    set)
-        shift
-        if [ -z "$1" ]; then
-            echo "Error: Stage name required"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        validate)
+            validate_current_stage
+            ;;
+        next)
+            advance_stage
+            ;;
+        status)
+            show_status
+            ;;
+        current)
+            get_current_stage
+            ;;
+        set)
+            shift
+            if [ -z "$1" ]; then
+                echo "Error: Stage name required"
+                exit 1
+            fi
+            set_current_stage "$1"
+            echo "Stage set to: $1"
+            ;;
+        *)
+            echo "Usage: $0 {validate|next|status|current|set <stage>}"
+            echo ""
+            echo "Commands:"
+            echo "  validate  - Validate current stage"
+            echo "  next     - Advance to next stage (if validated)"
+            echo "  status   - Show current status"
+            echo "  current  - Get current stage name"
+            echo "  set      - Set stage (use with caution)"
             exit 1
-        fi
-        set_current_stage "$1"
-        echo "Stage set to: $1"
-        ;;
-    *)
-        echo "Usage: $0 {validate|next|status|current|set <stage>}"
-        echo ""
-        echo "Commands:"
-        echo "  validate  - Validate current stage"
-        echo "  next     - Advance to next stage (if validated)"
-        echo "  status   - Show current status"
-        echo "  current  - Get current stage name"
-        echo "  set      - Set stage (use with caution)"
-        exit 1
-        ;;
-esac
+            ;;
+    esac
+fi
 

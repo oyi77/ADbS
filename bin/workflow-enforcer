@@ -20,7 +20,7 @@ fi
 
 # Determine Project Root (where .adbs data is)
 # Default to current directory or ADBS_PROJECT_ROOT if set
-if [ -n "$ADBS_PROJECT_ROOT" ]; then
+if [ -n "${ADBS_PROJECT_ROOT:-}" ]; then
     PROJECT_ROOT="$ADBS_PROJECT_ROOT"
 else
     # Fallback: assume current directory is project root
@@ -44,12 +44,25 @@ DASHBOARD="$INSTALL_ROOT/lib/internal/dashboard.sh"
 mkdir -p "$PROJECT_ROOT/lib/internal"
 
 # Ensure scripts are executable
-if ! chmod +x "$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" "$DASHBOARD" 2>/dev/null; then
-    # chmod failed - likely on Windows or permission issue
-    # Check if scripts are already executable or if we're on Windows
-    if [ ! -x "$WORK_MANAGER" ] && [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
-        echo "Warning: Could not make scripts executable. You may need to run:"
-        echo "  chmod +x lib/**/*.sh bin/*"
+# Performance: Check first to avoid spawning chmod process on every run
+_scripts_to_check=("$WORK_MANAGER" "$TASK_BACKEND" "$MIGRATOR" "$PLATFORM_DETECTOR" "$DASHBOARD")
+_needs_chmod=false
+
+for script in "${_scripts_to_check[@]}"; do
+    if [ ! -x "$script" ]; then
+        _needs_chmod=true
+        break
+    fi
+done
+
+if [ "$_needs_chmod" = true ]; then
+    if ! chmod +x "${_scripts_to_check[@]}" 2>/dev/null; then
+        # chmod failed - likely on Windows or permission issue
+        # Check if scripts are already executable or if we're on Windows
+        if [ ! -x "$WORK_MANAGER" ] && [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
+            echo "Warning: Could not make scripts executable. You may need to run:"
+            echo "  chmod +x lib/**/*.sh bin/*"
+        fi
     fi
 fi
 
