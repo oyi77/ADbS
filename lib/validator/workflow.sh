@@ -329,14 +329,20 @@ validate_execution() {
     fi
 
     if [ "$HAS_JQ" -eq 1 ]; then
-        local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
+        # Optimized single pass to avoid parsing JSON 3 times
+        read -r task_count completed_count progress_count <<< $(jq -r '
+            .tasks |
+            [
+                length,
+                ([.[] | select(.status == "completed")] | length),
+                ([.[] | select(.status == "in_progress")] | length)
+            ] | @tsv
+        ' "$tasks_json" 2>/dev/null || echo "0 0 0")
+
         if [ "$task_count" -lt 1 ]; then
             echo "Error: No tasks found in task manager"
             return 1
         fi
-
-        local completed_count=$(jq '[.tasks[] | select(.status == "completed")] | length' "$tasks_json" 2>/dev/null || echo "0")
-        local progress_count=$(jq '[.tasks[] | select(.status == "in_progress")] | length' "$tasks_json" 2>/dev/null || echo "0")
 
         echo "Execution stage validated ($task_count tasks: $progress_count in progress, $completed_count completed)"
 
