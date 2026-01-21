@@ -74,12 +74,16 @@ safe_json_get_key() {
         return 1
     fi
     
-    _detect_json_processor
-    local processor="$_JSON_PROCESSOR_CACHE"
-
-    if [ "$processor" = "none" ]; then
-        echo "$default"
-        return 1
+    local processor="${_JSON_PROCESSOR_CACHE:-}"
+    if [ -z "$processor" ]; then
+        if command -v jq &> /dev/null; then
+            processor="jq"
+        elif command -v python3 &> /dev/null; then
+            processor="python3"
+        else
+            echo "$default"
+            return 1
+        fi
     fi
     
     if [ "$processor" = "jq" ]; then
@@ -132,8 +136,13 @@ safe_json_write() {
         if echo "$json_content" > "$temp_file" 2>&1; then
             # Validate JSON before moving
             local validation_failed=0
-            _detect_json_processor
-            local processor="$_JSON_PROCESSOR_CACHE"
+            local processor="${_JSON_PROCESSOR_CACHE:-}"
+
+            # Fallback if not cached
+            if [ -z "$processor" ]; then
+                if command_exists jq; then processor="jq";
+                elif command_exists python3; then processor="python3"; fi
+            fi
 
             if [ "$processor" = "jq" ]; then
                 if ! jq . "$temp_file" > /dev/null 2>&1; then
@@ -248,5 +257,13 @@ get_json_processor() {
     return 0
 }
 
+# Initialize JSON processor cache when sourced
+if [ -z "${_JSON_PROCESSOR_CACHE:-}" ]; then
+    if command_exists jq; then
+        export _JSON_PROCESSOR_CACHE="jq"
+    elif command_exists python3; then
+        export _JSON_PROCESSOR_CACHE="python3"
+    fi
+fi
 # Auto-detect on source to ensure subshells inherit the cache
 _detect_json_processor
