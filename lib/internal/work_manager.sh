@@ -406,33 +406,35 @@ export_context() {
 }
 
 # Main command handler
-case "${1:-}" in
-    create|new)
-        shift
-        create_work "$@"
-        ;;
-    list)
-        shift
-        list_work "$@"
-        ;;
-    show)
-        shift
-        show_work "$@"
-        ;;
-    context)
-        shift
-        export_context "$@"
-        ;;
-    complete|done)
-        shift
-        complete_work "$@"
-        ;;
-    status)
-        show_status
-        ;;
-    *)
-        echo "Unknown work command: ${1:-}"
-        echo "Usage: work_manager.sh {create|list|show|complete|status}"
-        exit 1
-        ;;
-esac
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        create|new)
+            shift
+            create_work "$@"
+            ;;
+        list)
+            shift
+            list_work "$@"
+            ;;
+        show)
+            shift
+            show_work "$@"
+            ;;
+        context)
+            shift
+            export_context "$@"
+            ;;
+        complete|done)
+            shift
+            complete_work "$@"
+            ;;
+        status)
+            show_status
+            ;;
+        *)
+            echo "Unknown work command: ${1:-}"
+            echo "Usage: work_manager.sh {create|list|show|complete|status}"
+            exit 1
+            ;;
+    esac
+fi
