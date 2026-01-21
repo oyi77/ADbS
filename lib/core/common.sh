@@ -231,22 +231,30 @@ command_exists() {
     command -v "$cmd" &> /dev/null
 }
 
-# Get JSON processor (jq, python3, or none)
-get_json_processor() {
+# Detect JSON processor and set cache
+_detect_json_processor() {
     if [ -n "${_JSON_PROCESSOR_CACHE:-}" ]; then
-        echo "$_JSON_PROCESSOR_CACHE"
         return 0
     fi
 
     if command_exists jq; then
-        echo "jq"
-        return 0
+        export _JSON_PROCESSOR_CACHE="jq"
     elif command_exists python3; then
-        echo "python3"
-        return 0
+        export _JSON_PROCESSOR_CACHE="python3"
     else
+        export _JSON_PROCESSOR_CACHE="none"
+    fi
+}
+
+# Get JSON processor (jq, python3, or none)
+get_json_processor() {
+    _detect_json_processor
+
+    if [ "$_JSON_PROCESSOR_CACHE" = "none" ]; then
         return 1
     fi
+    echo "$_JSON_PROCESSOR_CACHE"
+    return 0
 }
 
 # Initialize JSON processor cache when sourced
@@ -257,3 +265,5 @@ if [ -z "${_JSON_PROCESSOR_CACHE:-}" ]; then
         export _JSON_PROCESSOR_CACHE="python3"
     fi
 fi
+# Auto-detect on source to ensure subshells inherit the cache
+_detect_json_processor
