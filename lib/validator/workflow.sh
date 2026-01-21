@@ -329,14 +329,20 @@ validate_execution() {
     fi
 
     if [ "$HAS_JQ" -eq 1 ]; then
-        local task_count=$(jq '.tasks | length' "$tasks_json" 2>/dev/null || echo "0")
+        # Optimized single pass to avoid parsing JSON 3 times
+        read -r task_count completed_count progress_count <<< $(jq -r '
+            .tasks |
+            [
+                length,
+                ([.[] | select(.status == "completed")] | length),
+                ([.[] | select(.status == "in_progress")] | length)
+            ] | @tsv
+        ' "$tasks_json" 2>/dev/null || echo "0 0 0")
+
         if [ "$task_count" -lt 1 ]; then
             echo "Error: No tasks found in task manager"
             return 1
         fi
-
-        local completed_count=$(jq '[.tasks[] | select(.status == "completed")] | length' "$tasks_json" 2>/dev/null || echo "0")
-        local progress_count=$(jq '[.tasks[] | select(.status == "in_progress")] | length' "$tasks_json" 2>/dev/null || echo "0")
 
         echo "Execution stage validated ($task_count tasks: $progress_count in progress, $completed_count completed)"
 
@@ -473,38 +479,40 @@ show_status() {
 }
 
 # Main command handler
-case "${1:-}" in
-    validate)
-        validate_current_stage
-        ;;
-    next)
-        advance_stage
-        ;;
-    status)
-        show_status
-        ;;
-    current)
-        get_current_stage
-        ;;
-    set)
-        shift
-        if [ -z "$1" ]; then
-            echo "Error: Stage name required"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        validate)
+            validate_current_stage
+            ;;
+        next)
+            advance_stage
+            ;;
+        status)
+            show_status
+            ;;
+        current)
+            get_current_stage
+            ;;
+        set)
+            shift
+            if [ -z "$1" ]; then
+                echo "Error: Stage name required"
+                exit 1
+            fi
+            set_current_stage "$1"
+            echo "Stage set to: $1"
+            ;;
+        *)
+            echo "Usage: $0 {validate|next|status|current|set <stage>}"
+            echo ""
+            echo "Commands:"
+            echo "  validate  - Validate current stage"
+            echo "  next     - Advance to next stage (if validated)"
+            echo "  status   - Show current status"
+            echo "  current  - Get current stage name"
+            echo "  set      - Set stage (use with caution)"
             exit 1
-        fi
-        set_current_stage "$1"
-        echo "Stage set to: $1"
-        ;;
-    *)
-        echo "Usage: $0 {validate|next|status|current|set <stage>}"
-        echo ""
-        echo "Commands:"
-        echo "  validate  - Validate current stage"
-        echo "  next     - Advance to next stage (if validated)"
-        echo "  status   - Show current status"
-        echo "  current  - Get current stage name"
-        echo "  set      - Set stage (use with caution)"
-        exit 1
-        ;;
-esac
+            ;;
+    esac
+fi
 
