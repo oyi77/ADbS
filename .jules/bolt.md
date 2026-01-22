@@ -1,3 +1,6 @@
+## 2026-01-19 - [Shell Loop Process Spawning]
+**Learning:** In `work_manager.sh`, the `list_work` function spawned external processes (`basename`, `sed`, `grep`) inside a loop for each item. For 50 items, this took ~577ms. Replacing these with shell builtins (`${var##*/}`, `${var:offset}`, `read`) reduced time to ~11ms (98% improvement).
+**Action:** Always prefer shell builtins and parameter expansion over external commands like `sed`, `awk`, `basename`, or `grep` inside loops.
 ## 2026-01-18 - [Shell Builtins vs Caching]
 **Learning:** Attempted to cache `command -v` results in a variable to avoid repeated checks. However, benchmarking revealed that `command -v` (a shell builtin) is extremely fast, and the overhead of checking a variable in shell script is comparable or even slower than the builtin itself. The optimization added complexity without performance gain.
 **Action:** Do not cache shell builtins like `command -v` unless inside a very tight loop with significant other overheads. Focus on avoiding external process spawns (like `jq`, `chmod`, `grep`) instead.
