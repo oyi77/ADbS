@@ -5,6 +5,7 @@ load ../test_helper
 
 setup() {
     setup_test_env
+    export ADBS_PROJECT_ROOT="$TEMP_DIR"
     export ADBS_DIR="$TEMP_DIR/.adbs"
     mkdir -p "$ADBS_DIR/work" "$ADBS_DIR/archive"
     export PATH="$PROJECT_ROOT/bin:$PATH"
