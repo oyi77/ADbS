@@ -10,3 +10,6 @@
 ## 2024-05-23 - Shell Script Sourcing for Tests
 **Learning:** Shell scripts in `lib/` often run as standalone executables but must be sourceable for unit testing. Without a guard `if [[ "${BASH_SOURCE[0]}" == "${0}" ]];`, sourcing the script triggers its main execution logic (e.g., argument parsing), causing tests to fail immediately with exit codes or usage messages.
 **Action:** Always wrap the main execution logic of shell scripts in a guard block to ensure they can be safely sourced by test runners like BATS.
+## 2026-01-27 - [Avoid Intermediate jq Processing]
+**Learning:** Formatting data with `jq` (e.g., splitting strings) to pass to another `jq` instance adds significant overhead due to process spawning and subshells.
+**Action:** Move data formatting logic (like `split(",") | map(...)`) directly into the main `jq` filter using `--arg` for raw input. This reduced execution time by ~2.7x (672ms to 248ms) in `update_task`.

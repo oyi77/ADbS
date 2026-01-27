@@ -243,9 +243,8 @@ update_task() {
     if [ "$field" = "tags" ] || [ "$field" = "depends_on" ]; then
         # Parse comma-separated values
         if [ "$JQ_CMD" = "jq" ]; then
-            local array_value=$(echo "$value" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')
-            jq --arg id "$id" --arg field "$field" --argjson val "$array_value" \
-               '(.tasks[] | select(.id == $id) | .[$field]) = $val | 
+            jq --arg id "$id" --arg field "$field" --arg value "$value" \
+               '(.tasks[] | select(.id == $id) | .[$field]) = ($value | split(",") | map(gsub("^\\s+|\\s+$"; ""))) |
                 (.tasks[] | select(.id == $id) | .updated_at) = (now | todateiso8601)' \
                "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
         elif [ "$JQ_CMD" = "python3" ]; then
