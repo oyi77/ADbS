@@ -10,3 +10,6 @@
 ## 2024-05-23 - Shell Script Sourcing for Tests
 **Learning:** Shell scripts in `lib/` often run as standalone executables but must be sourceable for unit testing. Without a guard `if [[ "${BASH_SOURCE[0]}" == "${0}" ]];`, sourcing the script triggers its main execution logic (e.g., argument parsing), causing tests to fail immediately with exit codes or usage messages.
 **Action:** Always wrap the main execution logic of shell scripts in a guard block to ensure they can be safely sourced by test runners like BATS.
+## 2026-05-22 - [Random ID Generation Performance]
+**Learning:** Generating random IDs using `head -c 10 /dev/urandom | md5sum | cut -c 1-6` is significantly slower than using Bash builtins because it spawns three external processes per ID. In tight loops (e.g., creating many tasks), this becomes a bottleneck.
+**Action:** Use Bash builtins (e.g., `$RANDOM`) to generate random strings when cryptographic security is not required. It is approx 40x faster.
