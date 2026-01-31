@@ -10,3 +10,6 @@
 ## 2024-05-23 - Shell Script Sourcing for Tests
 **Learning:** Shell scripts in `lib/` often run as standalone executables but must be sourceable for unit testing. Without a guard `if [[ "${BASH_SOURCE[0]}" == "${0}" ]];`, sourcing the script triggers its main execution logic (e.g., argument parsing), causing tests to fail immediately with exit codes or usage messages.
 **Action:** Always wrap the main execution logic of shell scripts in a guard block to ensure they can be safely sourced by test runners like BATS.
+## 2026-02-19 - [Shell Random String Generation]
+**Learning:** Generating random strings by reading from `/dev/urandom` via a pipeline (`head | md5sum | cut`) is significantly slower (~5ms/op) than using Bash built-ins and `$RANDOM` (~0.12ms/op) due to process spawning overhead.
+**Action:** Prefer using Bash built-ins (e.g., string slicing `${chars:$((RANDOM % len)):1}`) for generating short random identifiers in tight loops.
