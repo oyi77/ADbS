@@ -10,3 +10,6 @@
 ## 2024-05-23 - Shell Script Sourcing for Tests
 **Learning:** Shell scripts in `lib/` often run as standalone executables but must be sourceable for unit testing. Without a guard `if [[ "${BASH_SOURCE[0]}" == "${0}" ]];`, sourcing the script triggers its main execution logic (e.g., argument parsing), causing tests to fail immediately with exit codes or usage messages.
 **Action:** Always wrap the main execution logic of shell scripts in a guard block to ensure they can be safely sourced by test runners like BATS.
+## 2025-05-23 - [Pure Bash Performance]
+**Learning:** Replaced external process pipeline (`head | md5sum | cut`) with pure Bash array indexing for random string generation. Resulted in ~34x speedup (16ms vs 583ms for 100 iterations) by eliminating fork/exec overhead.
+**Action:** Prefer shell built-ins and arrays over external utilities (sed, awk, head, cut) for simple string manipulation in tight loops or frequently called functions.
