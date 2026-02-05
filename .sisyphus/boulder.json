@@ -1,0 +1,17 @@
+{
+  "active_plan": "C:\\Users\\Snap-PC-Dev-026\\ADbS\\.sisyphus\\plans\\adbs-evolution.md",
+  "started_at": "2026-02-05T08:39:46.208Z",
+  "session_ids": [
+    "ses_3d3554c9effeRrQW6hcOV6HiLt"
+  ],
+  "plan_name": "adbs-evolution",
+  "completed_at": "2026-02-05T09:35:00.000Z",
+  "status": "COMPLETED",
+  "summary": {
+    "total_tasks": 11,
+    "completed_tasks": 11,
+    "files_created": 18,
+    "binary_size": "3.2MB",
+    "platforms": ["Windows", "Linux", "macOS", "Termux (ARM64)"]
+  }
+}

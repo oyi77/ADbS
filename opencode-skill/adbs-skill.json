@@ -1,0 +1,110 @@
+{
+  "name": "adbs",
+  "displayName": "ADbS - AI Development Workflow",
+  "description": "Keep your AI focused. Manage work items, tasks, and proposals using ADbS methodology.",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "name": "adbs-new",
+      "description": "Start a new work item using ADbS methodology",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the feature or fix to work on"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description of the work"
+          }
+        },
+        "required": ["name"]
+      },
+      "examples": [
+        "adbs new \"user authentication\"",
+        "adbs new \"API endpoint for users\""
+      ]
+    },
+    {
+      "name": "adbs-status",
+      "description": "Check current active work items",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "examples": [
+        "adbs status"
+      ]
+    },
+    {
+      "name": "adbs-todo",
+      "description": "Add or update tasks for current work",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task description"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in-progress", "done"],
+            "description": "Task status"
+          }
+        },
+        "required": ["task"]
+      },
+      "examples": [
+        "adbs todo \"Write tests for login\"",
+        "adbs todo \"Implement API endpoint\" --status=in-progress"
+      ]
+    },
+    {
+      "name": "adbs-done",
+      "description": "Mark a work item as complete and archive it",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the work item to complete"
+          }
+        },
+        "required": ["name"]
+      },
+      "examples": [
+        "adbs done \"user authentication\""
+      ]
+    },
+    {
+      "name": "adbs-setup",
+      "description": "Initialize ADbS in a new project",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "examples": [
+        "adbs setup"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "name": "adbs-workflow",
+      "description": "Enforce ADbS workflow discipline",
+      "conditions": {
+        "always": true
+      },
+      "actions": [
+        "When starting a new feature, use 'adbs new <name>' to create a work item",
+        "Track all tasks with 'adbs todo <description>'",
+        "Review progress with 'adbs status'",
+        "Complete work with 'adbs done <name>' when all tasks are done"
+      ]
+    }
+  ],
+  "compatibility": {
+    "opencode": ">=1.0.0"
+  }
+}
