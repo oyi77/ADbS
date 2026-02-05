@@ -4,6 +4,7 @@
 
 ![Tests](https://github.com/oyi77/ADbS/workflows/Tests/badge.svg)
 ![Coverage](https://img.shields.io/badge/coverage-65%20tests-brightgreen)
+![Go Version](https://img.shields.io/badge/Go-1.21-blue)
 
 ADbS helps you work with AI coding assistants (Cursor, Windsurf, Zed, and more) by keeping them focused on your goals and preventing hallucinations.
 
@@ -14,6 +15,15 @@ ADbS helps you work with AI coding assistants (Cursor, Windsurf, Zed, and more) 
 ### Installation
 
 Choose your preferred installation method:
+
+#### 📱 Termux (Android)
+
+**Direct install (recommended)**:
+```bash
+curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/distribution/install-termux.sh | bash
+```
+
+The Termux installer automatically detects your architecture (ARM64/ARMv7/386) and installs the correct binary.
 
 #### 🪟 Windows
 
@@ -199,9 +209,33 @@ ADbS works with:
 - **Windsurf**: Native Cascade support
 - **Zed**: Project-specific rules
 - **VS Code**: Full integration
+- **OpenCode**: First-class skill plugin support
 - **Other AI IDEs**: Universal support
 
 Rules are generated automatically when you run `adbs setup`.
+
+---
+
+## 🏗️ Architecture
+
+ADbS is now a **native Go binary** for maximum portability:
+
+- **Zero runtime dependencies** - No Python, Node.js, or Bash required
+- **Cross-platform** - Windows, Linux, macOS, Termux (Android), iSH (iOS)
+- **Static binary** - Single 3MB executable, easy distribution
+- **Fast execution** - Native performance
+- **OpenCode Skill** - Integrated as a first-class plugin
+
+### Directory Structure
+
+```
+.adbs/
+├── bin/adbs              # Go binary executable
+├── work/                 # Active work items
+├── archive/              # Completed work
+├── internal/             # State and task files
+└── config/               # Configuration
+```
 
 ---
 
@@ -211,6 +245,51 @@ Rules are generated automatically when you run `adbs setup`.
 - **[Reference](docs/REFERENCE.md)**: Complete command reference
 - **[Architecture](docs/ARCHITECTURE.md)**: Technical deep dive (for developers)
 - **[Contributing](docs/CONTRIBUTING.md)**: How to contribute
+- **[Mobile Guide](docs/TERMUX.md)**: Termux and mobile development guide
+
+---
+
+## 📱 Mobile Development (Termux)
+
+ADbS runs natively on **Android (Termux)** and **iOS (iSH)**:
+
+### Termux Setup
+1. Install [Termux from F-Droid](https://f-droid.org/packages/com.termux/)
+2. Install Go (optional - binary already compiled):
+   ```bash
+   pkg install golang
+   ```
+3. Install ADbS:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/oyi77/ADbS/main/distribution/install-termux.sh | bash
+   ```
+4. Restart Termux or run `source ~/.termux/bashrc`
+
+### iSH Setup
+1. Install [iSH from App Store](https://apps.apple.com/us/app/ish-shell/id1436902233)
+2. Install Go:
+   ```bash
+   apk add golang
+   ```
+3. Download and run the Linux ARM64 binary
+
+### Mobile Workflow
+```bash
+# Initialize
+adbs setup
+
+# Start work
+adbs new "Fix login bug"
+
+# Add tasks
+adbs todo "Check network requests"
+
+# Check status
+adbs status
+
+# Generate dashboard
+adbs dashboard  # Opens in mobile browser
+```
 
 ---
 
