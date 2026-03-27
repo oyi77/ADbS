@@ -85,22 +85,47 @@ create_task() {
     local depends_on="${4:-}"
     local tags="${5:-}"
     
+    if [ -z "$description" ]; then
+        if command -v log_error >/dev/null; then
+            log_error "Task description required"
+        else
+            echo "Error: Task description required" >&2
+        fi
+        return 1
+    fi
+
     init_tasks
     
-    local id=$(generate_hierarchical_id "$parent")
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%d %H:%M:%S")
+    local id=""
     
     if [ "$JQ_CMD" = "jq" ]; then
-        # Optimized single-pass jq execution for array creation and appending
-        jq --arg id "$id" \
-           --arg desc "$description" \
+        # Generate random suffix for potential use (if root task)
+        local random_suffix=$(generate_id)
+
+        # Optimized single-pass jq execution: count children (if needed), generate ID, and append
+        # Outputs the new ID to stderr for capture to avoid second read
+        jq --arg desc "$description" \
            --arg priority "$priority" \
            --arg parent "${parent:-null}" \
            --arg tags "$tags" \
            --arg depends "$depends_on" \
            --arg timestamp "$timestamp" \
-           '.tasks += [{
-                id: $id,
+           --arg random_suffix "$random_suffix" \
+           '
+           (if $parent == "null" or $parent == "" then
+               "task-" + $random_suffix
+            else
+               # Count children for hierarchical ID
+               ([.tasks[] | select(.parent == $parent)] | length) as $count |
+               $parent + "." + ($count + 1 | tostring)
+            end) as $new_id |
+
+            # Side effect: print ID to stderr
+            ($new_id | stderr) as $ignored |
+
+           .tasks += [{
+                id: $new_id,
                 description: $desc,
                 status: "todo",
                 priority: $priority,
@@ -110,8 +135,22 @@ create_task() {
                 comments: [],
                 created_at: $timestamp,
                 updated_at: $timestamp
-            }] | .next_id += 1' "$TASKS_FILE" > "${TASKS_FILE}.tmp" && mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
+            }] | .next_id += 1' "$TASKS_FILE" > "${TASKS_FILE}.tmp" 2> "${TASKS_FILE}.id"
+
+        if [ $? -eq 0 ]; then
+            mv "${TASKS_FILE}.tmp" "$TASKS_FILE"
+            if [ -f "${TASKS_FILE}.id" ]; then
+                id=$(cat "${TASKS_FILE}.id")
+                rm "${TASKS_FILE}.id"
+            fi
+        else
+            rm -f "${TASKS_FILE}.tmp" "${TASKS_FILE}.id"
+            echo "Error: Failed to create task using jq" >&2
+            return 1
+        fi
+
     elif [ "$JQ_CMD" = "python3" ]; then
+        id=$(generate_hierarchical_id "$parent")
         python3 <<PYTHON
 import json
 from datetime import datetime
