@@ -190,7 +190,7 @@ EOF
 
 # List all active work
 list_work() {
-    local filter="$1"
+    local filter="${1:-}"
     
     if [ ! -d "$WORK_DIR" ]; then
         echo "No active work"
@@ -205,14 +205,24 @@ list_work() {
     
     for work_path in "$WORK_DIR"/*; do
         if [ -d "$work_path" ]; then
-            local work_id=$(basename "$work_path")
-            # Extract name (remove date prefix)
-            local work_name=$(echo "$work_id" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//')
+            local work_id="${work_path##*/}"
             
-            # Get first line of proposal as description
+            # Extract name (remove date prefix YYYY-MM-DD-)
+            local work_name="$work_id"
+            if [[ "$work_id" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}- ]]; then
+                 work_name="${work_id:11}"
+            fi
+
+            # Get first line of proposal as description (optimized)
             local desc=""
             if [ -f "$work_path/proposal.md" ]; then
-                desc=$(grep -m 1 "^# " "$work_path/proposal.md" | sed 's/^# //')
+                # Read first line only
+                local first_line=""
+                if read -r first_line < "$work_path/proposal.md" || [ -n "$first_line" ]; then
+                    if [[ "$first_line" == "# "* ]]; then
+                        desc="${first_line#\# }"
+                    fi
+                fi
             fi
             
             echo "  • $work_name"
